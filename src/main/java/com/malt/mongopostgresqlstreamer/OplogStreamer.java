@@ -40,11 +40,8 @@ public class OplogStreamer {
     private MongoDatabase database;
 
     public void watchFromCheckpoint(Optional<BsonTimestamp> checkpoint) {
-        // read oplog
         for (Document document : oplog.getCollection("oplog.rs").find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait)) {
-
             BsonTimestamp timestamp = processOperation(document);
-
             checkpointManager.keep(timestamp);
         }
     }

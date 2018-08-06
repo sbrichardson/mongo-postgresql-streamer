@@ -6,7 +6,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import javax.annotation.PostConstruct;
-import java.io.FileNotFoundException;
 import java.util.Optional;
 
 @SpringBootApplication
@@ -17,15 +16,20 @@ public class StreamerApplication {
     }
 
     @Autowired
-    private MappingsManager mappingsManager;
-    @Autowired
     private OplogStreamer oplogStreamer;
+    @Autowired
+    private InitialImporter initialImporter;
     @Autowired
     private CheckpointManager checkpointManager;
 
     @PostConstruct
     public void start() {
         Optional<BsonTimestamp> checkpoint = checkpointManager.getLastKnown();
+
+        if (!checkpoint.isPresent()) {
+            initialImporter.start();
+        }
+
         oplogStreamer.watchFromCheckpoint(checkpoint);
     }
 

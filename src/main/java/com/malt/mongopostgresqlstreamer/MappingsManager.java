@@ -33,18 +33,20 @@ public class MappingsManager {
 
         Set<String> databases = mappings.keySet();
         for (String dbName : databases) {
-
+            List<Table> tables = new ArrayList<>();
             Database db = new Database();
+            db.setTables(tables);
             db.setName(dbName);
             dbs.add(db);
 
             JsonObject database = mappings.getAsJsonObject(dbName);
             for (String collectionName : database.keySet()) {
+                List<Field> fields = new ArrayList<>();
                 Table table = new Table();
                 table.setName(collectionName);
-
+                tables.add(table);
+                table.setFields(fields);
                 JsonObject collection = database.getAsJsonObject(collectionName);
-                System.out.println("-" + collectionName);
                 table.setPk(collection.get("pk").getAsString());
                 for (String fieldName : collection.keySet()) {
                     if (!fieldName.equals("pk")) {
@@ -52,6 +54,7 @@ public class MappingsManager {
                         Field field = new Field();
                         field.setDest(fieldObject.get("dest").getAsString());
                         field.setType(fieldObject.get("type").getAsString());
+                        fields.add(field);
                     }
                 }
             }
