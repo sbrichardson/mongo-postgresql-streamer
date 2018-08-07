@@ -7,4 +7,5 @@ public class Field {
 
     private String dest;
     private String type;
+    private boolean indexed;
 }

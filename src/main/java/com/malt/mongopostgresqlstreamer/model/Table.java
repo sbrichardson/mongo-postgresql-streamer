@@ -10,4 +10,5 @@ public class Table {
     private String pk;
     private List<Field> fields;
     private String name;
+    private List<String> indices;
 }

@@ -5,6 +5,7 @@ import com.malt.mongopostgresqlstreamer.model.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.stream.Collectors;
 
@@ -33,12 +34,18 @@ public class InitialImporter {
                 .collect( Collectors.joining( "," ));
     }
 
-    private void createSchema() {
+    @Transactional
+    protected void createSchema() {
         Mappings mappingConfigs = mappingsManager.mappingConfigs;
         for (Table table : mappingConfigs.listOfTables()) {
             jdbcTemplate.execute(format("DROP TABLE IF EXISTS %s", table.getName()));
             jdbcTemplate.execute(format("CREATE TABLE %s (%s)", table.getName(), fieldAndTypes(table)));
             jdbcTemplate.execute(format("ALTER TABLE %s ADD PRIMARY KEY(%s)", table.getName(), table.getPk()));
+
+            for (String index : table.getIndices()) {
+                jdbcTemplate.execute("CREATE " + index);
+            }
+
         }
     }
 }

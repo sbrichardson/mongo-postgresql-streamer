@@ -1,5 +1,7 @@
 package com.malt.mongopostgresqlstreamer;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.malt.mongopostgresqlstreamer.model.Database;
@@ -42,19 +44,34 @@ public class MappingsManager {
             JsonObject database = mappings.getAsJsonObject(dbName);
             for (String collectionName : database.keySet()) {
                 List<Field> fields = new ArrayList<>();
+                List<String> indices = new ArrayList<>();
                 Table table = new Table();
+                table.setIndices(indices);
                 table.setName(collectionName);
                 tables.add(table);
                 table.setFields(fields);
                 JsonObject collection = database.getAsJsonObject(collectionName);
                 table.setPk(collection.get("pk").getAsString());
+                if (collection.has("indices")) {
+                    JsonArray listOfIndices = collection.get("indices").getAsJsonArray();
+                    for (JsonElement index : listOfIndices) {
+                        indices.add(index.getAsString());
+                    }
+                }
                 for (String fieldName : collection.keySet()) {
-                    if (!fieldName.equals("pk")) {
+                    if (!fieldName.equals("pk") && !fieldName.equals("indices") ) {
                         JsonObject fieldObject = collection.getAsJsonObject(fieldName);
                         Field field = new Field();
                         field.setDest(fieldObject.get("dest").getAsString());
                         field.setType(fieldObject.get("type").getAsString());
                         fields.add(field);
+
+                        if (fieldObject.has("index")) {
+                            field.setIndexed(fieldObject.get("index").getAsBoolean());
+                            indices.add(String.format("INDEX idx_%s_%s ON %s (%s)",
+                                    collectionName.replace(".", "_"),
+                                    field.getDest(), collectionName, field.getDest()));
+                        }
                     }
                 }
             }
