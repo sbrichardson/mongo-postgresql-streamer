@@ -1,15 +1,21 @@
 package com.malt.mongopostgresqlstreamer;
 
-import com.malt.mongopostgresqlstreamer.model.Mappings;
-import com.malt.mongopostgresqlstreamer.model.Table;
+import com.malt.mongopostgresqlstreamer.connectors.Connector;
+import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
+import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
+import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.stream.Collectors;
-
-import static java.lang.String.format;
+import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @Service
 public class InitialImporter {
@@ -17,7 +23,10 @@ public class InitialImporter {
     @Autowired
     private MappingsManager mappingsManager;
     @Autowired
-    JdbcTemplate jdbcTemplate;
+    @Qualifier("database")
+    private MongoDatabase mongoDatabase;
+    @Autowired
+    private List<Connector> connectors;
 
     public void start() {
         createSchema();
@@ -27,25 +36,39 @@ public class InitialImporter {
     private void populateData() {
     }
 
-    private String fieldAndTypes(Table table) {
-        return table.getFields()
-                .stream()
-                .map(f -> f.getDest() + " " + f.getType())
-                .collect( Collectors.joining( "," ));
-    }
-
     @Transactional
     protected void createSchema() {
-        Mappings mappingConfigs = mappingsManager.mappingConfigs;
-        for (Table table : mappingConfigs.listOfTables()) {
-            jdbcTemplate.execute(format("DROP TABLE IF EXISTS %s", table.getName()));
-            jdbcTemplate.execute(format("CREATE TABLE %s (%s)", table.getName(), fieldAndTypes(table)));
-            jdbcTemplate.execute(format("ALTER TABLE %s ADD PRIMARY KEY(%s)", table.getName(), table.getPk()));
+        DatabaseMapping mappingConfigs = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
 
-            for (String index : table.getIndices()) {
-                jdbcTemplate.execute("CREATE " + index);
+        for (Connector connector : connectors) {
+            for (TableMapping tableMapping : mappingConfigs.getTableMappings()) {
+                boolean needToBeImported = toStream(mongoDatabase.listCollectionNames().iterator())
+                        .anyMatch(collectionName -> collectionName.equals(tableMapping.getSourceCollection()));
+
+                if (needToBeImported) {
+                    connector.prepareInitialImport(tableMapping.getSourceCollection(), mappingConfigs);
+
+                    connector.bulkInsert(
+                            tableMapping.getSourceCollection(),
+                            toStream(
+                                    mongoDatabase.getCollection(tableMapping.getSourceCollection())
+                                            .find()
+                                            .noCursorTimeout(true)
+                                            .iterator()
+                            )
+                                    .map(FlattenMongoDocument::fromDocument),
+                            mappingConfigs
+                    );
+                }
             }
-
         }
+
+    }
+
+    private <T> Stream<T> toStream(MongoCursor<T> iterator) {
+        return StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
+                false
+        );
     }
 }

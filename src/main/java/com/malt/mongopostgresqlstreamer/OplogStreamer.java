@@ -1,5 +1,7 @@
 package com.malt.mongopostgresqlstreamer;
 
+import com.malt.mongopostgresqlstreamer.connectors.Connector;
+import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoDatabase;
@@ -10,7 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 import static com.mongodb.client.model.Filters.*;
@@ -38,6 +42,8 @@ public class OplogStreamer {
     @Autowired
     @Qualifier("database")
     private MongoDatabase database;
+    @Autowired
+    private List<Connector> connectors;
 
     public void watchFromCheckpoint(Optional<BsonTimestamp> checkpoint) {
         for (Document document : oplog.getCollection("oplog.rs").find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait)) {
@@ -46,22 +52,41 @@ public class OplogStreamer {
         }
     }
 
-    private BsonTimestamp processOperation(Document document) {
+    @Transactional
+    BsonTimestamp processOperation(Document document) {
         Long id = document.getLong("h");
         String namespace = document.getString("ns");
-        String operation= document.getString("op");
+        String operation = document.getString("op");
         BsonTimestamp timestamp = document.get("ts", BsonTimestamp.class);
-        System.out.println("operation = " + operation + " document : " + id + " namespace = " + namespace + " at time : " + timestamp) ;
+        System.out.println("operation = " + operation + " document : " + id + " namespace = " + namespace + " at time : " + timestamp);
 
         switch (operation) {
             case "i":
-                insert(document);
+                connectors.forEach(connector ->
+                        connector.insert(
+                                namespace,
+                                FlattenMongoDocument.fromMap(document),
+                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
+                        )
+                );
                 break;
             case "u":
-                update(document);
+                connectors.forEach(connector ->
+                        connector.update(
+                                namespace,
+                                FlattenMongoDocument.fromMap(document),
+                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
+                        )
+                );
                 break;
             case "d":
-                remove(document);
+                connectors.forEach(connector ->
+                        connector.remove(
+                                namespace,
+                                FlattenMongoDocument.fromMap(document),
+                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
+                        )
+                );
                 break;
             default:
                 break;
