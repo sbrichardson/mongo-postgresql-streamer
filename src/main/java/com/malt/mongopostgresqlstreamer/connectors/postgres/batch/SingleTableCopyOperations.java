@@ -4,6 +4,7 @@ import com.malt.mongopostgresqlstreamer.connectors.postgres.Field;
 import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringEscapeUtils;
+import org.postgresql.copy.CopyManager;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -22,35 +23,36 @@ import static java.util.stream.Collectors.toList;
 class SingleTableCopyOperations {
     private static final Object lock = new Object();
 
-    private final int maxElementsBeforeCallback;
-    private final ScheduledExecutorService scheduledExecutorService;
+//    private final int maxElementsBeforeCallback;
+//    private final ScheduledExecutorService scheduledExecutorService;
     private final AtomicInteger valueCounter = new AtomicInteger();
 
-    private final Consumer<SingleTableCopyOperations> callback;
+//    private final Consumer<SingleTableCopyOperations> callback;
 
     private final String table;
     private final String fieldsHeader;
     private final List<String> fieldNames;
+    private final CopyManager copyManager;
 
     private String copyString;
 
     SingleTableCopyOperations(
             String table, List<FieldMapping> fields,
-            int maxSecondsBeforeCallback, int maxElementsBeforeCallback,
-            Consumer<SingleTableCopyOperations> callback
+            CopyManager copyManager
     ) {
         this.table = table;
         this.fieldNames = fields.stream().filter(mapping -> !mapping.isAnArray()).map(FieldMapping::getDestinationName).sorted().collect(toList());
         this.fieldsHeader = serialize(fieldNames);
         this.copyString = fieldsHeader;
+        this.copyManager = copyManager;
 
-        this.maxElementsBeforeCallback = maxElementsBeforeCallback;
-        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
-        this.scheduledExecutorService.scheduleAtFixedRate(
-                this::releaseValues, maxSecondsBeforeCallback, maxSecondsBeforeCallback, TimeUnit.SECONDS
-        );
+//        this.maxElementsBeforeCallback = maxElementsBeforeCallback;
+//        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
+//        this.scheduledExecutorService.scheduleAtFixedRate(
+//                this::releaseValues, maxSecondsBeforeCallback, maxSecondsBeforeCallback, TimeUnit.SECONDS
+//        );
 
-        this.callback = callback;
+//        this.callback = callback;
     }
 
     void addOperation(List<Field> fields) {
@@ -67,14 +69,14 @@ class SingleTableCopyOperations {
             throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
         }
 
-        synchronized (lock) {
+//        synchronized (lock) {
             this.copyString += serialize(fields.stream().sorted().map(Field::getValue).collect(toList()));
             this.valueCounter.incrementAndGet();
 
-            if (valueCounter.get() >= maxElementsBeforeCallback) {
+            if (valueCounter.get() >= 500) {
                 releaseValues();
             }
-        }
+//        }
     }
 
     private List<String> getMissingFields(List<Field> fields) {
@@ -126,14 +128,15 @@ class SingleTableCopyOperations {
     }
 
     private void releaseValues() {
-        synchronized (lock) {
+//        synchronized (lock) {
             if (valueCounter.get() != 0) {
-                callback.accept(this);
+                commitPendingUpserts(this);
+//                callback.accept(this);
                 this.copyString = fieldsHeader;
             }
 
             valueCounter.set(0);
-        }
+//        }
     }
 
     String getTable() {
@@ -146,5 +149,21 @@ class SingleTableCopyOperations {
 
     InputStream getCopyContentStream() {
         return new ByteArrayInputStream(getCopyContent().getBytes());
+    }
+
+    private void commitPendingUpserts(SingleTableCopyOperations singleTableCopyOperations) {
+        try {
+            log.trace("COPY on {} : {}", singleTableCopyOperations.getTable(), singleTableCopyOperations.getCopyContent());
+            copyManager.copyIn(
+                    "COPY " + singleTableCopyOperations.getTable() + " FROM STDIN WITH DELIMITER ',' NULL as 'null' CSV HEADER",
+                    singleTableCopyOperations.getCopyContentStream()
+            );
+        } catch (Exception e) {
+            log.error("", e);
+        }
+    }
+
+    public void finalizeOperations() {
+        releaseValues();
     }
 }

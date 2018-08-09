@@ -6,6 +6,7 @@ import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
@@ -105,13 +106,21 @@ public class PostgreSqlConnector implements Connector {
             log.trace("Starting bulk insert of collection {} ({} documents)...", collection, totalNumberOfDocuments);
         }
 
+        long startTime = System.currentTimeMillis();
+
+        final List<Object[]> batchArgs = new ArrayList<>();
         AtomicInteger counter = new AtomicInteger();
         documents
-                .parallel()
+//                .parallel()
                 .forEach(document -> {
                     TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
                     List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
                     List<Field> currentTableFields = getCurrentTableFields(mappedFields);
+
+//                    sqlExecutor.upsert(tableMapping.getDestinationName(),
+//                            tableMapping.getPrimaryKey(),
+//                            withPrimaryKeyIfNecessary(currentTableFields, tableMapping.getPrimaryKey()));
+
                     sqlExecutor.batchInsert(
                             tableMapping.getDestinationName(),
                             tableMapping.getFieldMappings(),
@@ -122,8 +131,15 @@ public class PostgreSqlConnector implements Connector {
                             importRelatedCollections(mappings, tableMapping, document)
                     );
 
-                    counter.incrementAndGet();
+                    int tmpCounter = counter.incrementAndGet();
+                    if (tmpCounter % 1000 == 0) {
+                        long endTime = System.currentTimeMillis();
+                        double processTimeInSeconds = (endTime - startTime)/1000D;
+                        log.info("{} documents imported in collection {} - speed : {}/s", tmpCounter, collection, tmpCounter/processTimeInSeconds);
+                    }
                 });
+
+        sqlExecutor.finalizeBatchInsert();
 
         if (!relatedCollection) {
             log.info("{} and its related collections was successfully imported ({} documents) !", collection, counter.get());
@@ -171,13 +187,13 @@ public class PostgreSqlConnector implements Connector {
         Optional<FieldMapping> optPrimaryKeyMapping = tableMapping.getByDestinationName(tableMapping.getPrimaryKey());
         if (!optPrimaryKeyMapping.isPresent()) {
             log.error("No primary key mapping found for document {}. Generating a random one...", document);
-            return UUID.randomUUID().toString();
+            return new ObjectId().toString();
         }
 
         Optional<Object> optDocumentPrimaryKey = document.get(optPrimaryKeyMapping.get().getSourceName());
         if (!optDocumentPrimaryKey.isPresent()) {
             log.error("No primary key value found for document {}. Generating a random one...", document);
-            return UUID.randomUUID().toString();
+            return new ObjectId().toString();
         }
 
         return optDocumentPrimaryKey.get();
@@ -190,7 +206,7 @@ public class PostgreSqlConnector implements Connector {
             return currentTableFields;
         }
 
-        currentTableFields.add(new Field(primaryKey, UUID.randomUUID().toString()));
+        currentTableFields.add(new Field(primaryKey, new ObjectId().toString()));
         return currentTableFields;
     }
 

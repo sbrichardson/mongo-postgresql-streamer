@@ -62,6 +62,10 @@ public class SqlExecutor {
         copyOperationsManager.addInsertOperation(table, mappings, fields);
     }
 
+    public void finalizeBatchInsert() {
+        copyOperationsManager.finalizeCopyOperations();
+    }
+
 
     void dropTable(String table) {
         log.debug("Dropping table '{}'...", table);
@@ -103,6 +107,7 @@ public class SqlExecutor {
     private List<Object> getValues(List<Field> fields) {
         return fields.stream()
                 .map(Field::getValue)
+                .map(v -> v instanceof String ? ((String) v).replaceAll("\\u0000","") : v)
                 .collect(toList());
     }
 

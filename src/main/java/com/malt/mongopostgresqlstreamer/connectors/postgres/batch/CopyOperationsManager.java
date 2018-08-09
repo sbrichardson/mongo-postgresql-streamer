@@ -7,6 +7,7 @@ import org.postgresql.copy.CopyManager;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,7 +19,7 @@ public class CopyOperationsManager {
     private static final int MAX_SECONDS_BEFORE_CALLBACK = 10;
 
     private final CopyManager copyManager;
-    private final Map<String, SingleTableCopyOperations> copyOperationsPerTable = new ConcurrentHashMap<>();
+    private final Map<String, SingleTableCopyOperations> copyOperationsPerTable = new HashMap<>();
 
     @Inject
     public CopyOperationsManager(CopyManager copyManager) {
@@ -31,8 +32,7 @@ public class CopyOperationsManager {
                     table,
                     new SingleTableCopyOperations(
                             table, fieldMappings,
-                            MAX_SECONDS_BEFORE_CALLBACK, MAX_ELEMENTS_BEFORE_CALLBACK,
-                            this::commitPendingUpserts
+                            copyManager
                     )
             );
         }
@@ -50,6 +50,13 @@ public class CopyOperationsManager {
             );
         } catch (Exception e) {
             log.error("", e);
+        }
+    }
+
+    public void finalizeCopyOperations() {
+        for (String table : copyOperationsPerTable.keySet()) {
+            SingleTableCopyOperations operations = copyOperationsPerTable.get(table);
+            operations.finalizeOperations();
         }
     }
 }

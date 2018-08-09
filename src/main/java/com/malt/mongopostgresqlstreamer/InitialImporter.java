@@ -34,20 +34,13 @@ public class InitialImporter {
     }
 
     private void populateData() {
-    }
-
-    @Transactional
-    protected void createSchema() {
         DatabaseMapping mappingConfigs = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
 
         for (Connector connector : connectors) {
             for (TableMapping tableMapping : mappingConfigs.getTableMappings()) {
                 boolean needToBeImported = toStream(mongoDatabase.listCollectionNames().iterator())
                         .anyMatch(collectionName -> collectionName.equals(tableMapping.getSourceCollection()));
-
                 if (needToBeImported) {
-                    connector.prepareInitialImport(tableMapping.getSourceCollection(), mappingConfigs);
-
                     connector.bulkInsert(
                             tableMapping.getSourceCollection(),
                             mongoDatabase.getCollection(tableMapping.getSourceCollection()).count(),
@@ -60,6 +53,22 @@ public class InitialImporter {
                                     .map(FlattenMongoDocument::fromDocument),
                             mappingConfigs
                     );
+                }
+            }
+        }
+
+    }
+
+    @Transactional
+    protected void createSchema() {
+        DatabaseMapping mappingConfigs = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
+
+        for (Connector connector : connectors) {
+            for (TableMapping tableMapping : mappingConfigs.getTableMappings()) {
+                boolean needToBeImported = toStream(mongoDatabase.listCollectionNames().iterator())
+                        .anyMatch(collectionName -> collectionName.equals(tableMapping.getSourceCollection()));
+                if (needToBeImported) {
+                    connector.prepareInitialImport(tableMapping.getSourceCollection(), mappingConfigs);
                 }
             }
         }
