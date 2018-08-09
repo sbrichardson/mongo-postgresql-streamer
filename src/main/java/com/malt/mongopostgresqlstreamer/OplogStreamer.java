@@ -1,6 +1,7 @@
 package com.malt.mongopostgresqlstreamer;
 
 import com.malt.mongopostgresqlstreamer.connectors.Connector;
+import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
@@ -60,39 +61,40 @@ public class OplogStreamer {
         String operation = document.getString("op");
         BsonTimestamp timestamp = document.get("ts", BsonTimestamp.class);
 
-        switch (operation) {
-            case "i":
-                connectors.forEach(connector ->
-                        connector.insert(
-                                collection,
-                                FlattenMongoDocument.fromMap(document),
-                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
-                        )
-                );
-                break;
-            case "u":
-                connectors.forEach(connector ->
-                        connector.update(
-                                collection,
-                                FlattenMongoDocument.fromMap(document),
-                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
-                        )
-                );
-                break;
-            case "d":
-                connectors.forEach(connector ->
-                        connector.remove(
-                                collection,
-                                FlattenMongoDocument.fromMap(document),
-                                mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
-                        )
-                );
-                break;
-            default:
-                break;
+        DatabaseMapping mappings = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
+        if (mappings.get(collection).isPresent()) {
+            switch (operation) {
+                case "i":
+                    connectors.forEach(connector ->
+                            connector.insert(
+                                    collection,
+                                    FlattenMongoDocument.fromMap(document),
+                                    mappings
+                            )
+                    );
+                    break;
+                case "u":
+                    connectors.forEach(connector ->
+                            connector.update(
+                                    collection,
+                                    FlattenMongoDocument.fromMap(document),
+                                    mappings
+                            )
+                    );
+                    break;
+                case "d":
+                    connectors.forEach(connector ->
+                            connector.remove(
+                                    collection,
+                                    FlattenMongoDocument.fromMap(document),
+                                    mappings
+                            )
+                    );
+                    break;
+                default:
+                    break;
+            }
         }
-
-
         return timestamp;
     }
 
