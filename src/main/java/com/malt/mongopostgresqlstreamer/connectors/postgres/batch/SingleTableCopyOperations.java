@@ -11,23 +11,15 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
 class SingleTableCopyOperations {
-    private static final Object lock = new Object();
+    public static final int CHUNK_SIZE = 500;
 
-//    private final int maxElementsBeforeCallback;
-//    private final ScheduledExecutorService scheduledExecutorService;
     private final AtomicInteger valueCounter = new AtomicInteger();
-
-//    private final Consumer<SingleTableCopyOperations> callback;
 
     private final String table;
     private final String fieldsHeader;
@@ -45,14 +37,6 @@ class SingleTableCopyOperations {
         this.fieldsHeader = serialize(fieldNames);
         this.copyString = fieldsHeader;
         this.copyManager = copyManager;
-
-//        this.maxElementsBeforeCallback = maxElementsBeforeCallback;
-//        this.scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
-//        this.scheduledExecutorService.scheduleAtFixedRate(
-//                this::releaseValues, maxSecondsBeforeCallback, maxSecondsBeforeCallback, TimeUnit.SECONDS
-//        );
-
-//        this.callback = callback;
     }
 
     void addOperation(List<Field> fields) {
@@ -68,15 +52,12 @@ class SingleTableCopyOperations {
         } else if (fields.size() > fieldNames.size()) {
             throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
         }
+        this.copyString += serialize(fields.stream().sorted().map(Field::getValue).collect(toList()));
+        this.valueCounter.incrementAndGet();
 
-//        synchronized (lock) {
-            this.copyString += serialize(fields.stream().sorted().map(Field::getValue).collect(toList()));
-            this.valueCounter.incrementAndGet();
-
-            if (valueCounter.get() >= 500) {
-                releaseValues();
-            }
-//        }
+        if (valueCounter.get() >= CHUNK_SIZE) {
+            releaseValues();
+        }
     }
 
     private List<String> getMissingFields(List<Field> fields) {
@@ -128,15 +109,12 @@ class SingleTableCopyOperations {
     }
 
     private void releaseValues() {
-//        synchronized (lock) {
-            if (valueCounter.get() != 0) {
-                commitPendingUpserts(this);
-//                callback.accept(this);
-                this.copyString = fieldsHeader;
-            }
+        if (valueCounter.get() != 0) {
+            commitPendingUpserts(this);
+            this.copyString = fieldsHeader;
+        }
 
-            valueCounter.set(0);
-//        }
+        valueCounter.set(0);
     }
 
     String getTable() {

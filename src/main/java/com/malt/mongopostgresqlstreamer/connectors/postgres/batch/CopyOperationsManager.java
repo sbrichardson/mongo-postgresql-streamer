@@ -10,14 +10,10 @@ import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
 public class CopyOperationsManager {
-    private static final int MAX_ELEMENTS_BEFORE_CALLBACK = 5000;
-    private static final int MAX_SECONDS_BEFORE_CALLBACK = 10;
-
     private final CopyManager copyManager;
     private final Map<String, SingleTableCopyOperations> copyOperationsPerTable = new HashMap<>();
 
@@ -40,22 +36,9 @@ public class CopyOperationsManager {
         copyOperationsPerTable.get(table).addOperation(fields);
     }
 
-
-    private void commitPendingUpserts(SingleTableCopyOperations singleTableCopyOperations) {
-        try {
-            log.trace("COPY on {} : {}", singleTableCopyOperations.getTable(), singleTableCopyOperations.getCopyContent());
-            copyManager.copyIn(
-                    "COPY " + singleTableCopyOperations.getTable() + " FROM STDIN WITH DELIMITER ',' NULL as 'null' CSV HEADER",
-                    singleTableCopyOperations.getCopyContentStream()
-            );
-        } catch (Exception e) {
-            log.error("", e);
-        }
-    }
-
-    public void finalizeCopyOperations() {
-        for (String table : copyOperationsPerTable.keySet()) {
-            SingleTableCopyOperations operations = copyOperationsPerTable.get(table);
+    public void finalizeCopyOperations(String collection) {
+        SingleTableCopyOperations operations = copyOperationsPerTable.get(collection);
+        if (operations != null) {
             operations.finalizeOperations();
         }
     }

@@ -108,18 +108,12 @@ public class PostgreSqlConnector implements Connector {
 
         long startTime = System.currentTimeMillis();
 
-        final List<Object[]> batchArgs = new ArrayList<>();
         AtomicInteger counter = new AtomicInteger();
         documents
-//                .parallel()
                 .forEach(document -> {
                     TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
                     List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
                     List<Field> currentTableFields = getCurrentTableFields(mappedFields);
-
-//                    sqlExecutor.upsert(tableMapping.getDestinationName(),
-//                            tableMapping.getPrimaryKey(),
-//                            withPrimaryKeyIfNecessary(currentTableFields, tableMapping.getPrimaryKey()));
 
                     sqlExecutor.batchInsert(
                             tableMapping.getDestinationName(),
@@ -135,11 +129,11 @@ public class PostgreSqlConnector implements Connector {
                     if (tmpCounter % 1000 == 0) {
                         long endTime = System.currentTimeMillis();
                         double processTimeInSeconds = (endTime - startTime)/1000D;
-                        log.info("{} documents imported in collection {} - speed : {}/s", tmpCounter, collection, tmpCounter/processTimeInSeconds);
+                        log.info("{} documents imported - speed : {}/s", tmpCounter, tmpCounter/processTimeInSeconds);
                     }
                 });
 
-        sqlExecutor.finalizeBatchInsert();
+        sqlExecutor.finalizeBatchInsert(collection);
 
         if (!relatedCollection) {
             log.info("{} and its related collections was successfully imported ({} documents) !", collection, counter.get());
