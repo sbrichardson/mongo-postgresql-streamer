@@ -50,6 +50,7 @@ public class InitialImporter {
 
                     connector.bulkInsert(
                             tableMapping.getSourceCollection(),
+                            mongoDatabase.getCollection(tableMapping.getSourceCollection()).count(),
                             toStream(
                                     mongoDatabase.getCollection(tableMapping.getSourceCollection())
                                             .find()

@@ -19,5 +19,5 @@ public interface Connector {
 
     void remove(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
 
-    void bulkInsert(String collection, Stream<FlattenMongoDocument> documents, DatabaseMapping mappings);
+    void bulkInsert(String collection, long totalNumberOfDocuments, Stream<FlattenMongoDocument> documents, DatabaseMapping mappings);
 }

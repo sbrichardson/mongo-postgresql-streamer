@@ -1,11 +1,13 @@
 package com.malt.mongopostgresqlstreamer.connectors.postgres;
 
+import com.malt.mongopostgresqlstreamer.connectors.postgres.batch.CopyOperationsManager;
 import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,12 +18,13 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class SqlExecutor {
     private final JdbcTemplate jdbcTemplate;
+    private final CopyOperationsManager copyOperationsManager;
 
     @Inject
-    public SqlExecutor(JdbcTemplate jdbcTemplate) {
+    public SqlExecutor(JdbcTemplate jdbcTemplate, CopyOperationsManager copyOperationsManager) {
         this.jdbcTemplate = jdbcTemplate;
+        this.copyOperationsManager = copyOperationsManager;
     }
-
 
     void update(String table, List<Field> fields, String primaryKey, Object primaryKeyValue) {
         String query = format(
@@ -54,6 +57,12 @@ public class SqlExecutor {
         jdbcTemplate.update(query, valuesArray);
     }
 
+    void batchInsert(String table, List<FieldMapping> mappings, List<Field> fields) {
+        log.trace("Bulking insert of {} ({})", table, fields);
+        copyOperationsManager.addInsertOperation(table, mappings, fields);
+    }
+
+
     void dropTable(String table) {
         log.debug("Dropping table '{}'...", table);
         sqlExecute("DROP TABLE IF EXISTS %s", table);
@@ -79,7 +88,7 @@ public class SqlExecutor {
         log.debug("Remove document where '{} = {}' from {}", primaryKey, primaryKeyValue, table);
         jdbcTemplate.update(
                 format("DELETE FROM %s WHERE %s = ? ", table, primaryKey),
-                new Object[]{primaryKeyValue}
+                primaryKeyValue
         );
     }
 
@@ -115,6 +124,7 @@ public class SqlExecutor {
         return fieldMappings
                 .stream()
                 .filter(f -> !f.getType().startsWith("_"))
+                .sorted(Comparator.comparing(FieldMapping::getDestinationName))
                 .map(f -> f.getDestinationName() + " " + f.getType())
                 .collect(Collectors.joining(","));
     }

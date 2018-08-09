@@ -18,4 +18,8 @@ public class FieldMapping {
     private String foreignKey;
 
     private String scalarFieldDestinationName;
+
+    public boolean isAnArray() {
+        return type.startsWith("_ARRAY");
+    }
 }

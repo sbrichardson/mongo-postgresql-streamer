@@ -31,6 +31,7 @@ public class PostgreSqlConnector implements Connector {
             String sourceCollection,
             DatabaseMapping mapping
     ) {
+        log.info("Importing {} from the beginning...", sourceCollection);
         log.debug("Preparing initial import for collection {}", sourceCollection);
 
         TableMapping tableMapping = getTableMappingOrFail(sourceCollection, mapping);
@@ -84,20 +85,59 @@ public class PostgreSqlConnector implements Connector {
     }
 
     @Override
-    public void bulkInsert(String collection, Stream<FlattenMongoDocument> documents, DatabaseMapping mappings) {
-        log.debug("Starting bulk insert of collection {}...", collection);
-
-        AtomicInteger counter = new AtomicInteger();
-        documents.forEach(document -> {
-            upsert(collection, document, mappings);
-            counter.incrementAndGet();
-        });
-
-        log.debug("Bulk insert of collection {} done : {} documents inserted", collection, counter.get());
+    public void bulkInsert(
+            String collection, long totalNumberOfDocuments,
+            Stream<FlattenMongoDocument> documents,
+            DatabaseMapping mappings
+    ) {
+        bulkInsert(collection, totalNumberOfDocuments, documents, mappings, false);
     }
 
-    private void importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
+    private int bulkInsert(
+            String collection, long totalNumberOfDocuments,
+            Stream<FlattenMongoDocument> documents,
+            DatabaseMapping mappings,
+            boolean relatedCollection
+    ) {
+        if (!relatedCollection) {
+            log.info("Starting bulk insert of collection {} ({} documents)...", collection, totalNumberOfDocuments);
+        } else {
+            log.trace("Starting bulk insert of collection {} ({} documents)...", collection, totalNumberOfDocuments);
+        }
+
+        AtomicInteger counter = new AtomicInteger();
+        documents
+                .parallel()
+                .forEach(document -> {
+                    TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
+                    List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
+                    List<Field> currentTableFields = getCurrentTableFields(mappedFields);
+                    sqlExecutor.batchInsert(
+                            tableMapping.getDestinationName(),
+                            tableMapping.getFieldMappings(),
+                            withPrimaryKeyIfNecessary(currentTableFields, tableMapping.getPrimaryKey())
+                    );
+
+                    counter.addAndGet(
+                            importRelatedCollections(mappings, tableMapping, document)
+                    );
+
+                    counter.incrementAndGet();
+                });
+
+        if (!relatedCollection) {
+            log.info("{} and its related collections was successfully imported ({} documents) !", collection, counter.get());
+        } else {
+            log.trace("Bulk insert of collection {} done : {} documents inserted", collection, counter.get());
+        }
+
+        return counter.get();
+    }
+
+    private int importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
         List<String> relatedCollections = getRelatedCollections(document);
+
+        AtomicInteger counter = new AtomicInteger();
         for (String relatedCollection : relatedCollections) {
             Optional<FieldMapping> optFieldMapping = tableMapping.getBySourceName(relatedCollection);
             if (!optFieldMapping.isPresent()) {
@@ -110,14 +150,21 @@ public class PostgreSqlConnector implements Connector {
                 continue;
             }
 
-            bulkInsert(
-                    optFieldMapping.get().getDestinationName(),
-                    extractFlattenDocumentsFromRelatedCollection(
-                            document, relatedCollection, foreignKey, getPrimaryKeyValue(document, tableMapping), optFieldMapping.get()
-                    ),
-                    mappings
+            List<FlattenMongoDocument> relatedDocuments = extractFlattenDocumentsFromRelatedCollection(
+                    document, relatedCollection, foreignKey, getPrimaryKeyValue(document, tableMapping), optFieldMapping.get()
+            );
+            counter.addAndGet(
+                    bulkInsert(
+                            optFieldMapping.get().getDestinationName(),
+                            relatedDocuments.size(),
+                            relatedDocuments.stream(),
+                            mappings,
+                            true
+                    )
             );
         }
+
+        return counter.get();
     }
 
     private Object getPrimaryKeyValue(FlattenMongoDocument document, TableMapping tableMapping) {
@@ -147,7 +194,7 @@ public class PostgreSqlConnector implements Connector {
         return currentTableFields;
     }
 
-    private Stream<FlattenMongoDocument> extractFlattenDocumentsFromRelatedCollection(
+    private List<FlattenMongoDocument> extractFlattenDocumentsFromRelatedCollection(
             FlattenMongoDocument root,
             String relatedCollection,
             String foreignKeyName, Object foreignKeyValue,
@@ -156,27 +203,29 @@ public class PostgreSqlConnector implements Connector {
         Optional<Object> optRelatedDocuments = root.get(relatedCollection);
         if (!optRelatedDocuments.isPresent()) {
             log.warn("No field corresponding to the specified related collection ({}) was found.", relatedCollection);
-            return Stream.empty();
+            return Collections.emptyList();
         }
 
-        List relatedDocuments = (List) optRelatedDocuments.get();
+        List<?> relatedDocuments = (List) optRelatedDocuments.get();
         if (relatedDocuments.isEmpty()) {
-            return Stream.empty();
+            return Collections.emptyList();
         }
 
         Object firstRelatedDocument = relatedDocuments.get(0);
         // Array of documents
         if (firstRelatedDocument instanceof Map) {
+            //noinspection unchecked
             return ((List<Map>) optRelatedDocuments.get()).stream()
                     .map(document -> FlattenMongoDocument.fromMap(document)
-                            .withField(foreignKeyName, foreignKeyValue));
+                            .withField(foreignKeyName, foreignKeyValue))
+                    .collect(toList());
         }
 
         // Array of scalars
         if (isBlank(fieldMapping.getScalarFieldDestinationName())) {
             log.error("'valueName' is mandatory for scalar arrays but was not found in mapping for {}. Import of {} skipped",
                     relatedCollection, relatedCollection);
-            return Stream.empty();
+            return Collections.emptyList();
         }
 
         return relatedDocuments.stream()
@@ -185,7 +234,8 @@ public class PostgreSqlConnector implements Connector {
                         foreignKeyValue,
                         fieldMapping.getScalarFieldDestinationName(),
                         value
-                ));
+                ))
+                .collect(toList());
 
     }
 

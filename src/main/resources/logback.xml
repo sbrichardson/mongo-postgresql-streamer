@@ -6,7 +6,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.malt" level="DEBUG"/>
+    <logger name="com.malt" level="INFO"/>
 
     <root level="WARN">
         <appender-ref ref="STDOUT"/>

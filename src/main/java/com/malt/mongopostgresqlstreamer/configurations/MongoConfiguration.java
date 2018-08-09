@@ -1,4 +1,4 @@
-package com.malt.mongopostgresqlstreamer;
+package com.malt.mongopostgresqlstreamer.configurations;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class MongoConfig {
+public class MongoConfiguration {
 
     @Value(value = "${mongo.uri:mongodb://localhost:27017}")
     private String uri;
