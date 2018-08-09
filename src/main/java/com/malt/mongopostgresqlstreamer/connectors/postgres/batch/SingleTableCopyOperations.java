@@ -54,20 +54,20 @@ class SingleTableCopyOperations {
     }
 
     void addOperation(List<Field> fields) {
-        synchronized (lock) {
-            if (fields.size() < fieldNames.size()) {
-                // Add missing field with NULL value
-                log.trace(
-                        "Expecting {} values but received {}. Adding NULL values to complete missing ones.",
-                        fieldNames.size(),
-                        fields.size()
-                );
-                getMissingFields(fields)
-                        .forEach(f -> fields.add(new Field(f, null)));
-            } else if (fields.size() > fieldNames.size()) {
-                throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
-            }
+        if (fields.size() < fieldNames.size()) {
+            // Add missing field with NULL value
+            log.trace(
+                    "Expecting {} values but received {}. Adding NULL values to complete missing ones.",
+                    fieldNames.size(),
+                    fields.size()
+            );
+            getMissingFields(fields)
+                    .forEach(f -> fields.add(new Field(f, null)));
+        } else if (fields.size() > fieldNames.size()) {
+            throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
+        }
 
+        synchronized (lock) {
             this.copyString += serialize(fields.stream().sorted().map(Field::getValue).collect(toList()));
             this.valueCounter.incrementAndGet();
 
@@ -80,10 +80,10 @@ class SingleTableCopyOperations {
     private List<String> getMissingFields(List<Field> fields) {
         List<String> missingFields = new ArrayList<>();
         fieldNames.forEach(fieldName -> {
-                    if (!fields.stream().anyMatch(f -> f.getName().equals(fieldName))) {
-                        missingFields.add(fieldName);
-                    }
-                });
+            if (!fields.stream().anyMatch(f -> f.getName().equals(fieldName))) {
+                missingFields.add(fieldName);
+            }
+        });
 
         return missingFields;
     }

@@ -56,15 +56,15 @@ public class OplogStreamer {
     BsonTimestamp processOperation(Document document) {
         Long id = document.getLong("h");
         String namespace = document.getString("ns");
+        String collection = namespace.split("\\.")[1];
         String operation = document.getString("op");
         BsonTimestamp timestamp = document.get("ts", BsonTimestamp.class);
-        System.out.println("operation = " + operation + " document : " + id + " namespace = " + namespace + " at time : " + timestamp);
 
         switch (operation) {
             case "i":
                 connectors.forEach(connector ->
                         connector.insert(
-                                namespace,
+                                collection,
                                 FlattenMongoDocument.fromMap(document),
                                 mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
                         )
@@ -73,7 +73,7 @@ public class OplogStreamer {
             case "u":
                 connectors.forEach(connector ->
                         connector.update(
-                                namespace,
+                                collection,
                                 FlattenMongoDocument.fromMap(document),
                                 mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
                         )
@@ -82,7 +82,7 @@ public class OplogStreamer {
             case "d":
                 connectors.forEach(connector ->
                         connector.remove(
-                                namespace,
+                                collection,
                                 FlattenMongoDocument.fromMap(document),
                                 mappingsManager.mappingConfigs.getDatabaseMappings().get(0)
                         )
