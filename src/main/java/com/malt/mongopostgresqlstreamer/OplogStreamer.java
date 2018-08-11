@@ -6,6 +6,7 @@ import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -22,9 +23,10 @@ import java.util.Optional;
 import static com.mongodb.client.model.Filters.*;
 
 @Service
+@Slf4j
 public class OplogStreamer {
 
-    @Value(value = "${mongo.connector.identifier:test}")
+    @Value(value = "${mongo.connector.identifier:streamer}")
     private String identifier;
 
     @Value(value = "${mongo.database:test}")
@@ -48,6 +50,7 @@ public class OplogStreamer {
     private List<Connector> connectors;
 
     public void watchFromCheckpoint(Optional<BsonTimestamp> checkpoint) {
+        log.info("Start watching the oplog...");
         for (Document document : oplog.getCollection("oplog.rs").find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait)) {
             BsonTimestamp timestamp = processOperation(document);
             checkpointManager.keep(timestamp);
@@ -67,6 +70,7 @@ public class OplogStreamer {
         // if we have two collection with the same name
         // but in different database
         if (mappings.get(collection).isPresent()) {
+            log.debug("Operation {} detected on {}", operation, namespace);
             switch (operation) {
                 case "i":
                     Map newDocument = (Map) document.get("o");

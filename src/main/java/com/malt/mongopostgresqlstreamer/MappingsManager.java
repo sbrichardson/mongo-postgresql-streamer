@@ -8,6 +8,7 @@ import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import com.malt.mongopostgresqlstreamer.model.Mappings;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -20,11 +21,14 @@ import java.util.Set;
 @Service
 public class MappingsManager {
 
+    @Value("${mappings:mappings.json}")
+    private String mappingFile;
+
     Mappings mappingConfigs;
 
     @PostConstruct
     public void read() throws FileNotFoundException {
-        mappingConfigs = read("mappings.json");
+        mappingConfigs = read(mappingFile);
     }
 
     private Mappings read(String mappingFile) throws FileNotFoundException {

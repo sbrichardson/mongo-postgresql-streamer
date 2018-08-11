@@ -1,10 +1,6 @@
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/bi
-    username: malt
-    password: admin
     platform: postgresql
 
-
-mongo.admin.database: hopwork
+management.endpoints.web.exposure.include: metrics, health, env, loggers
