@@ -79,13 +79,19 @@ public class OplogStreamer {
                     );
                     break;
                 case "u":
-                    connectors.forEach(connector ->
-                            connector.update(
-                                    collection,
-                                    FlattenMongoDocument.fromMap(document),
-                                    mappings
-                            )
-                    );
+                    Map documentIdToUpdate = (Map) document.get("o2");
+                    Document updatedDocument = database.getCollection(collection)
+                            .find(eq("_id", documentIdToUpdate.get("_id")))
+                            .first();
+                    if (updatedDocument != null) {
+                        connectors.forEach(connector ->
+                                connector.update(
+                                        collection,
+                                        FlattenMongoDocument.fromMap(updatedDocument),
+                                        mappings
+                                )
+                        );
+                    }
                     break;
                 case "d":
                     Map documentIdToRemove = (Map) document.get("o");
