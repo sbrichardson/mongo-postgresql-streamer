@@ -3,6 +3,7 @@ package com.malt.mongopostgresqlstreamer.connectors.postgres;
 import com.malt.mongopostgresqlstreamer.connectors.postgres.batch.CopyOperationsManager;
 import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -107,6 +108,7 @@ public class SqlExecutor {
         return fields.stream()
                 .map(Field::getValue)
                 .map(v -> v instanceof String ? ((String) v).replaceAll("\\u0000","") : v)
+                .map(v -> v instanceof ObjectId ? v.toString() : v)
                 .collect(toList());
     }
 

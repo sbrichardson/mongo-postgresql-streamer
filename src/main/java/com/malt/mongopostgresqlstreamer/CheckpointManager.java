@@ -6,7 +6,9 @@ import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -23,6 +25,7 @@ import java.util.Optional;
 import static com.mongodb.client.model.Filters.*;
 
 @Service
+@Slf4j
 public class CheckpointManager {
 
     @Value(value = "${mongo.connector.identifier:test}")
@@ -31,6 +34,20 @@ public class CheckpointManager {
     @Autowired
     @Qualifier("database")
     private MongoDatabase database;
+    @Autowired
+    @Qualifier("oplog")
+    private MongoDatabase oplog;
+
+    public BsonTimestamp getLastOplog() {
+        Document lastOplog = oplog.getCollection("oplog.rs").find()
+                .sort(Sorts.descending("$natural"))
+                .first();
+
+        if (lastOplog != null) {
+            return lastOplog.get("ts", BsonTimestamp.class);
+        }
+        throw new IllegalStateException("Unable to retrieve last oplog. Maybe you are not running your mongodb in a replica set");
+    }
 
     public Optional<BsonTimestamp> getLastKnown() {
         MongoCollection<Document> oplogOffset = database.getCollection("mongooplog");
@@ -38,6 +55,7 @@ public class CheckpointManager {
         Optional<BsonTimestamp> checkpoint = Optional.empty();
         if (lastProcessedOplog != null) {
             checkpoint = Optional.ofNullable(lastProcessedOplog.get("ts", BsonTimestamp.class));
+            log.info("Checkpoint found in the administrative database : {}.", checkpoint.get().toString());
         }
         return checkpoint;
     }

@@ -1,5 +1,6 @@
 package com.malt.mongopostgresqlstreamer;
 
+import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -7,10 +8,10 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import javax.annotation.PostConstruct;
 import java.util.Optional;
 
 @SpringBootApplication
+@Slf4j
 public class StreamerApplication implements ApplicationRunner {
 
     public static void main(String[] args) {
@@ -25,10 +26,13 @@ public class StreamerApplication implements ApplicationRunner {
     private CheckpointManager checkpointManager;
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
+    public void run(ApplicationArguments args) {
         Optional<BsonTimestamp> checkpoint = checkpointManager.getLastKnown();
 
         if (!checkpoint.isPresent()) {
+            log.info("No checkpoint found, we will perform a initial load");
+            checkpoint = Optional.of(checkpointManager.getLastOplog());
+            log.info("Last oplog found have timestamp : {}", checkpoint.get().toString());
             initialImporter.start();
         }
 

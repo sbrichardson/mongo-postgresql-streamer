@@ -188,6 +188,8 @@ public class PostgreSqlConnector implements Connector {
         if (!optDocumentPrimaryKey.isPresent()) {
             log.error("No primary key value found for document {}. Generating a random one...", document);
             return new ObjectId().toString();
+        } else {
+            optDocumentPrimaryKey = optDocumentPrimaryKey.map(pk -> pk instanceof ObjectId ? pk.toString() : pk);
         }
 
         return optDocumentPrimaryKey.get();

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.mongodb.client.model.Filters.*;
@@ -55,20 +56,24 @@ public class OplogStreamer {
 
     @Transactional
     BsonTimestamp processOperation(Document document) {
-        Long id = document.getLong("h");
         String namespace = document.getString("ns");
+        // TODO retrieve database as well
         String collection = namespace.split("\\.")[1];
         String operation = document.getString("op");
         BsonTimestamp timestamp = document.get("ts", BsonTimestamp.class);
 
         DatabaseMapping mappings = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
+        // TODO this test could lead to unexpected behaviour
+        // if we have two collection with the same name
+        // but in different database
         if (mappings.get(collection).isPresent()) {
             switch (operation) {
                 case "i":
+                    Map newDocument = (Map) document.get("o");
                     connectors.forEach(connector ->
                             connector.insert(
                                     collection,
-                                    FlattenMongoDocument.fromMap(document),
+                                    FlattenMongoDocument.fromMap(newDocument),
                                     mappings
                             )
                     );
@@ -83,10 +88,11 @@ public class OplogStreamer {
                     );
                     break;
                 case "d":
+                    Map documentIdToRemove = (Map) document.get("o");
                     connectors.forEach(connector ->
                             connector.remove(
                                     collection,
-                                    FlattenMongoDocument.fromMap(document),
+                                    FlattenMongoDocument.fromMap(documentIdToRemove),
                                     mappings
                             )
                     );
