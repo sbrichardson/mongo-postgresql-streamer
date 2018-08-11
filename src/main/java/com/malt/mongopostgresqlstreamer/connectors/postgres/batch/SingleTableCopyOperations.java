@@ -137,7 +137,8 @@ class SingleTableCopyOperations {
                     singleTableCopyOperations.getCopyContentStream()
             );
         } catch (Exception e) {
-            log.error("", e);
+            log.error("Unable to copy data for collection {}. Header was {}", singleTableCopyOperations.table, singleTableCopyOperations.fieldsHeader, e);
+            throw new IllegalStateException(e);
         }
     }
 

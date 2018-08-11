@@ -22,4 +22,15 @@ public class FieldMapping {
     public boolean isAnArray() {
         return type.startsWith("_ARRAY");
     }
+
+    public String getType() {
+        if (type.equalsIgnoreCase("_PRESENCE")) {
+            return "BOOLEAN DEFAULT FALSE";
+        }
+        return type;
+    }
+
+    public String getTrueType() {
+        return type;
+    }
 }
