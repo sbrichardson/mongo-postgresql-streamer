@@ -6,6 +6,7 @@ import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +57,9 @@ public class PostgreSqlConnector implements Connector {
         TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
         List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
         List<Field> currentTableFields = getCurrentTableFields(mappedFields);
+
+        removeAllRelatedRecords(mappings, tableMapping, document);
+
         sqlExecutor.upsert(
                 tableMapping.getDestinationName(),
                 tableMapping.getPrimaryKey(),
@@ -73,6 +77,15 @@ public class PostgreSqlConnector implements Connector {
     @Override
     public void update(String collection, FlattenMongoDocument document, DatabaseMapping mappings) {
         upsert(collection, document, mappings);
+    }
+
+    private void removeByForeignKey(String collection, String fieldName, Object value, DatabaseMapping mappings) {
+        TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
+        sqlExecutor.remove(
+                tableMapping.getDestinationName(),
+                fieldName,
+                value
+                );
     }
 
     @Override
@@ -142,6 +155,26 @@ public class PostgreSqlConnector implements Connector {
         }
 
         return counter.get();
+    }
+
+    public void removeAllRelatedRecords(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
+        List<String> relatedCollections = getRelatedCollections(document);
+        for (String relatedCollection : relatedCollections) {
+            Optional<FieldMapping> optFieldMapping = tableMapping.getBySourceName(relatedCollection);
+            if (!optFieldMapping.isPresent()) {
+                continue;
+            }
+
+            String foreignKey = optFieldMapping.get().getForeignKey();
+            if (isBlank(foreignKey)) {
+                log.error("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
+                continue;
+            }
+
+            Object foreignKeyValue = getPrimaryKeyValue(document, tableMapping);
+
+            removeByForeignKey(relatedCollection, foreignKey, foreignKeyValue, mappings);
+        }
     }
 
     private int importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {

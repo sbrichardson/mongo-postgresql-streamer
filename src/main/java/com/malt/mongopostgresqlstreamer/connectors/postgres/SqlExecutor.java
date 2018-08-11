@@ -27,20 +27,6 @@ public class SqlExecutor {
         this.copyOperationsManager = copyOperationsManager;
     }
 
-    void update(String table, List<Field> fields, String primaryKey, Object primaryKeyValue) {
-        String query = format(
-                "UPDATE %s SET %s WHERE %s = ?",
-                table, generateUpdateString(fields), primaryKey
-        );
-
-        List<Object> values = getValues(fields);
-        values.add(primaryKeyValue);
-        Object[] valuesArray = values.toArray();
-
-        log.trace("{} {}", query, valuesArray);
-        jdbcTemplate.update(query, valuesArray);
-    }
-
     void upsert(String table, String primaryKey, List<Field> fields) {
         String commaSeparatedFieldNames = getCommaSeparatedFieldNames(fields);
         String placeholders = getPlaceholders(fields);
