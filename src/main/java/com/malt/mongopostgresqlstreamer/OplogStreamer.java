@@ -4,6 +4,7 @@ import com.malt.mongopostgresqlstreamer.connectors.Connector;
 import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
+import com.mongodb.MongoClient;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -42,7 +43,9 @@ public class OplogStreamer {
     private MongoDatabase oplog;
     @Autowired
     @Qualifier("database")
-    private MongoDatabase database;
+    private MongoDatabase adminDatabase;
+    @Autowired
+    private MongoClient mongoClient;
     @Autowired
     private List<Connector> connectors;
 
@@ -59,7 +62,8 @@ public class OplogStreamer {
         if (checkpoint.isPresent()) {
             Document lastKnownOplog = oplog.find(eq("ts", checkpoint.get())).first();
             if (lastKnownOplog == null) {
-                log.error("Last known oplog is not in the oplog anymore. The watch will starts from first oplog but you should consider relaunch a reimport");
+                log.error("Last known oplog is not in the oplog anymore. The watch will starts from first " +
+                        "oplog but you should consider relaunch a reimport");
             }
             checkpoint = Optional.empty();
         }
@@ -69,70 +73,74 @@ public class OplogStreamer {
     @Transactional
     BsonTimestamp processOperation(Document document) {
         String namespace = document.getString("ns");
-        // TODO retrieve database as well
-        String collection = namespace.split("\\.")[1];
+        String[] databaseAndCollection = namespace.split("\\.");
+        String collection = databaseAndCollection[1];
+        String database = databaseAndCollection[0];
         String operation = document.getString("op");
         BsonTimestamp timestamp = document.get("ts", BsonTimestamp.class);
 
-        DatabaseMapping mappings = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
-        // TODO this test could lead to unexpected behaviour
-        // if we have two collection with the same name
-        // but in different database
-        if (mappings.get(collection).isPresent()) {
-            log.debug("Operation {} detected on {}", operation, namespace);
-            switch (operation) {
-                case "i":
-                    Map newDocument = (Map) document.get("o");
-                    connectors.forEach(connector ->
-                            connector.insert(
-                                    collection,
-                                    FlattenMongoDocument.fromMap(newDocument),
-                                    mappings
-                            )
-                    );
-                    break;
-                case "u":
-                    Map documentIdToUpdate = (Map) document.get("o2");
-                    Document updatedDocument = database.getCollection(collection)
-                            .find(eq("_id", documentIdToUpdate.get("_id")))
-                            .first();
-                    if (updatedDocument != null) {
+        mappingsManager.mappingConfigs.databaseMappingFor(database).ifPresent(mappings -> {
+            MongoDatabase mongoDb = mongoClient.getDatabase(database);
+            if (mappings.get(collection).isPresent()) {
+                log.debug("Operation {} detected on {}", operation, namespace);
+                switch (operation) {
+                    case "i":
+                        Map newDocument = (Map) document.get("o");
                         connectors.forEach(connector ->
-                                connector.update(
+                                connector.insert(
                                         collection,
-                                        FlattenMongoDocument.fromMap(updatedDocument),
+                                        FlattenMongoDocument.fromMap(newDocument),
                                         mappings
                                 )
                         );
-                    }
-                    break;
-                case "d":
-                    Map documentIdToRemove = (Map) document.get("o");
-                    connectors.forEach(connector ->
-                            connector.remove(
-                                    collection,
-                                    FlattenMongoDocument.fromMap(documentIdToRemove),
-                                    mappings
-                            )
-                    );
-                    break;
-                default:
-                    break;
+                        break;
+                    case "u":
+                        Map documentIdToUpdate = (Map) document.get("o2");
+                        Document updatedDocument = mongoDb.getCollection(collection)
+                                .find(eq("_id", documentIdToUpdate.get("_id")))
+                                .first();
+                        if (updatedDocument != null) {
+                            connectors.forEach(connector ->
+                                    connector.update(
+                                            collection,
+                                            FlattenMongoDocument.fromMap(updatedDocument),
+                                            mappings
+                                    )
+                            );
+                        }
+                        break;
+                    case "d":
+                        Map documentIdToRemove = (Map) document.get("o");
+                        connectors.forEach(connector ->
+                                connector.remove(
+                                        collection,
+                                        FlattenMongoDocument.fromMap(documentIdToRemove),
+                                        mappings
+                                )
+                        );
+                        break;
+                    default:
+                        break;
+                }
             }
-        }
+        });
+
         return timestamp;
     }
 
     private Bson oplogfilters(Optional<BsonTimestamp> checkpoint) {
-        if (checkpoint.isPresent()) {
-            return and(
-                    gt("ts", checkpoint.get()),
-                    ne("ns", database.getName() + ".mongooplog"),
-                    regex("ns", database.getName()));
-        }
-        return and(
-                ne("ns", database.getName() + ".mongooplog"),
-                regex("ns", database.getName()));
+        return checkpoint.map(bsonTimestamp -> and(
+                gt("ts", bsonTimestamp),
+                exists("fromMigrate", false),
+                in("op", "d", "u", "i"),
+                ne("ns", adminDatabase.getName() + ".mongooplog"),
+                regex("ns", adminDatabase.getName())))
+
+                .orElseGet(() -> and(
+                ne("ns", adminDatabase.getName() + ".mongooplog"),
+                exists("fromMigrate", false),
+                in("op", "d", "u", "i"),
+                regex("ns", adminDatabase.getName())));
     }
 
 

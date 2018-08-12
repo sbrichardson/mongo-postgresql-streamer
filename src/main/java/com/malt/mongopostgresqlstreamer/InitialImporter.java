@@ -4,6 +4,7 @@ import com.malt.mongopostgresqlstreamer.connectors.Connector;
 import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +27,7 @@ public class InitialImporter {
     @Autowired
     private MappingsManager mappingsManager;
     @Autowired
-    @Qualifier("database")
-    private MongoDatabase mongoDatabase;
+    private MongoClient mongoClient;
     @Autowired
     private List<Connector> connectors;
 
@@ -37,49 +37,50 @@ public class InitialImporter {
     }
 
     private void populateData() {
-        DatabaseMapping mappingConfigs = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
-        List<String> collectionNames = toStream(mongoDatabase.listCollectionNames().iterator()).collect(toList());
+        for (DatabaseMapping databaseMapping : mappingsManager.mappingConfigs.getDatabaseMappings()) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseMapping.getName());
+            List<String> collectionNames = toStream(mongoDatabase.listCollectionNames().iterator()).collect(toList());
 
-        for (Connector connector : connectors) {
-            for (TableMapping tableMapping : mappingConfigs.getTableMappings()) {
-                boolean needToBeImported = collectionNames.stream()
-                        .anyMatch(collectionIsMapped(tableMapping));
-                if (needToBeImported) {
-                    connector.bulkInsert(
-                            tableMapping.getSourceCollection(),
-                            mongoDatabase.getCollection(tableMapping.getSourceCollection()).count(),
-                            toStream(
-                                    mongoDatabase.getCollection(tableMapping.getSourceCollection())
-                                            .find()
-                                            .noCursorTimeout(true)
-                                            .iterator()
-                            )
-                                    .map(FlattenMongoDocument::fromMap),
-                            mappingConfigs
-                    );
+            for (Connector connector : connectors) {
+                for (TableMapping tableMapping : databaseMapping.getTableMappings()) {
+                    boolean needToBeImported = collectionNames.stream()
+                            .anyMatch(collectionIsMapped(tableMapping));
+                    if (needToBeImported) {
+                        String collectionName = tableMapping.getSourceCollection();
+                        connector.bulkInsert(
+                                collectionName,
+                                mongoDatabase.getCollection(collectionName).count(),
+                                toStream(
+                                        mongoDatabase.getCollection(collectionName)
+                                                .find()
+                                                .noCursorTimeout(true)
+                                                .iterator()
+                                )
+                                        .map(FlattenMongoDocument::fromMap),
+                                databaseMapping
+                        );
+                    }
                 }
             }
         }
-
     }
 
     @Transactional
     protected void createSchema() {
-        DatabaseMapping mappingConfigs = mappingsManager.mappingConfigs.getDatabaseMappings().get(0);
-        List<String> collectionNames = toStream(mongoDatabase.listCollectionNames().iterator()).collect(toList());
-
-        for (Connector connector : connectors) {
-            for (TableMapping tableMapping : mappingConfigs.getTableMappings()) {
-
-                boolean needToBeImported = collectionNames
-                                                    .stream()
-                                                    .anyMatch(collectionIsMapped(tableMapping));
-                if (needToBeImported) {
-                    connector.prepareInitialImport(tableMapping.getSourceCollection(), mappingConfigs);
+        for (DatabaseMapping databaseMapping : mappingsManager.mappingConfigs.getDatabaseMappings()) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseMapping.getName());
+            List<String> collectionNames = toStream(mongoDatabase.listCollectionNames().iterator()).collect(toList());
+            for (Connector connector : connectors) {
+                for (TableMapping tableMapping : databaseMapping.getTableMappings()) {
+                    boolean needToBeImported = collectionNames
+                            .stream()
+                            .anyMatch(collectionIsMapped(tableMapping));
+                    if (needToBeImported) {
+                        connector.createTable(tableMapping.getSourceCollection(), databaseMapping);
+                    }
                 }
             }
         }
-
     }
 
     private Predicate<String> collectionIsMapped(TableMapping tableMapping) {

@@ -6,7 +6,6 @@ import com.malt.mongopostgresqlstreamer.model.FieldMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +29,7 @@ public class PostgreSqlConnector implements Connector {
     }
 
     @Override
-    public void prepareInitialImport(
+    public void createTable(
             String sourceCollection,
             DatabaseMapping mapping
     ) {
@@ -49,7 +48,7 @@ public class PostgreSqlConnector implements Connector {
 
         List<String> relatedTables = getRelatedTables(tableMapping);
         for (String relatedTable : relatedTables) {
-            prepareInitialImport(relatedTable, mapping);
+            createTable(relatedTable, mapping);
         }
     }
 

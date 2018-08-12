@@ -6,7 +6,7 @@ import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import java.util.stream.Stream;
 
 public interface Connector {
-    void prepareInitialImport(
+    void createTable(
             String sourceCollection,
             DatabaseMapping mapping
     );

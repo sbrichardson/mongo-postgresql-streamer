@@ -15,8 +15,10 @@ import javax.annotation.PostConstruct;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class MappingsManager {
@@ -106,7 +108,30 @@ public class MappingsManager {
         }
         mappingConfigs.setDatabaseMappings(dbs);
 
+        checkIntegrity(mappingConfigs);
+
         return mappingConfigs;
+    }
+
+    private void checkIntegrity(Mappings mappingConfigs) {
+        checkNoCollectionNameConflicts(mappingConfigs);
+    }
+
+    private void checkNoCollectionNameConflicts(Mappings mappingConfigs) {
+        List<String> collectionNames = mappingConfigs.getDatabaseMappings()
+                .stream()
+                .flatMap(d -> d.getTableMappings().stream())
+                .map(TableMapping::getDestinationName)
+                .collect(Collectors.toList());
+        Set<String> duplicates = collectionNames
+                .stream()
+                .filter(s -> Collections.frequency(collectionNames, s) > 1)
+                .collect(Collectors.toSet());
+        if (duplicates.size() > 0) {
+            throw new IllegalStateException(String.format("Your mappings have several tables with the same name. " +
+                    "It will lead to conflicts in your database. The culprits are %s", duplicates));
+        }
+
     }
 
     private void addToIndices(String collectionName, List<String> indices, FieldMapping fieldMapping) {
