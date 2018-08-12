@@ -38,6 +38,7 @@ public class StreamerApplication implements ApplicationRunner {
             checkpoint = Optional.of(checkpointManager.getLastOplog());
             log.info("Last oplog found have timestamp : {}", checkpoint.get().toString());
             initialImporter.start();
+            checkpointManager.keep(checkpoint.get());
         }
 
         oplogStreamer.watchFromCheckpoint(checkpoint);
