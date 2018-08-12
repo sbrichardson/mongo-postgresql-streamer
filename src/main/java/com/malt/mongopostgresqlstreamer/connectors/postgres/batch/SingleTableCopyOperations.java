@@ -26,7 +26,7 @@ class SingleTableCopyOperations {
     private final List<String> fieldNames;
     private final CopyManager copyManager;
 
-    private String copyString;
+    private StringBuilder copyString;
 
     SingleTableCopyOperations(
             String table, List<FieldMapping> fields,
@@ -35,7 +35,7 @@ class SingleTableCopyOperations {
         this.table = table;
         this.fieldNames = fields.stream().filter(mapping -> !mapping.isAnArray()).map(FieldMapping::getDestinationName).sorted().collect(toList());
         this.fieldsHeader = serialize(fieldNames);
-        this.copyString = fieldsHeader;
+        this.copyString = new StringBuilder(fieldsHeader);
         this.copyManager = copyManager;
     }
 
@@ -52,7 +52,7 @@ class SingleTableCopyOperations {
         } else if (fields.size() > fieldNames.size()) {
             throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
         }
-        this.copyString += serialize(fields.stream().sorted().map(Field::getValue).collect(toList()));
+        this.copyString.append(serialize(fields.stream().sorted().map(Field::getValue).collect(toList())));
         this.valueCounter.incrementAndGet();
 
         if (valueCounter.get() >= CHUNK_SIZE) {
@@ -111,7 +111,7 @@ class SingleTableCopyOperations {
     private void releaseValues() {
         if (valueCounter.get() != 0) {
             commitPendingUpserts(this);
-            this.copyString = fieldsHeader;
+            this.copyString = new StringBuilder(fieldsHeader);
         }
 
         valueCounter.set(0);
@@ -122,7 +122,7 @@ class SingleTableCopyOperations {
     }
 
     String getCopyContent() {
-        return copyString;
+        return copyString.toString();
     }
 
     InputStream getCopyContentStream() {

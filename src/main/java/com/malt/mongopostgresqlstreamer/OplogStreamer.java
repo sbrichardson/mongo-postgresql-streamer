@@ -4,7 +4,6 @@ import com.malt.mongopostgresqlstreamer.connectors.Connector;
 import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
-import com.mongodb.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
@@ -33,11 +32,7 @@ public class OplogStreamer {
     private String dbName;
 
     @Autowired
-    private MongoClient client;
-    @Autowired
     private MappingsManager mappingsManager;
-    @Autowired
-    private OplogStreamer oplogReader;
     @Autowired
     private CheckpointManager checkpointManager;
     @Autowired
