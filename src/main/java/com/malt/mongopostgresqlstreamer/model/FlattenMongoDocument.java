@@ -19,27 +19,6 @@ public class FlattenMongoDocument {
         return flattenMongoDocument;
     }
 
-
-    public static FlattenMongoDocument fromDocument(Document document) {
-        FlattenMongoDocument flattenMongoDocument = new FlattenMongoDocument();
-        flattenMongoDocument.setValues(
-                filterOid(
-                        new JsonFlattener(document.toJson())
-                                .withFlattenMode(FlattenMode.KEEP_ARRAYS)
-                                .flattenAsMap()
-                )
-        );
-
-        return flattenMongoDocument;
-    }
-
-    private static Map<String, Object> filterOid(Map<String, Object> flattenAsMap) {
-        Map<String, Object> filteredMap = new HashMap<>();
-        flattenAsMap.forEach((k, v) ->
-                filteredMap.put(k.replace(".$oid", ""), v));
-        return filteredMap;
-    }
-
     public Optional<Object> get(String key) {
         return Optional.ofNullable(values.getOrDefault(key, null));
     }
