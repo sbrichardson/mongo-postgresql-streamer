@@ -41,76 +41,97 @@ public class MappingsManager {
 
         Set<String> databases = mappings.keySet();
         for (String dbName : databases) {
-            List<TableMapping> tableMappings = new ArrayList<>();
-            DatabaseMapping db = new DatabaseMapping();
-            db.setTableMappings(tableMappings);
-            db.setName(dbName);
+            DatabaseMapping db = readDatabaseMapping(mappings, dbName);
             dbs.add(db);
-
-            JsonObject database = mappings.getAsJsonObject(dbName);
-            for (String collectionName : database.keySet()) {
-                List<FieldMapping> fieldMappings = new ArrayList<>();
-                List<String> indices = new ArrayList<>();
-                TableMapping tableMapping = new TableMapping();
-                tableMapping.setIndices(indices);
-                tableMapping.setSourceCollection(collectionName);
-                tableMapping.setDestinationName(collectionName);
-                tableMappings.add(tableMapping);
-                tableMapping.setFieldMappings(fieldMappings);
-                JsonObject collection = database.getAsJsonObject(collectionName);
-                tableMapping.setPrimaryKey(collection.get("pk").getAsString());
-                if (collection.has("indices")) {
-                    JsonArray listOfIndices = collection.get("indices").getAsJsonArray();
-                    for (JsonElement index : listOfIndices) {
-                        indices.add(index.getAsString());
-                    }
-                }
-
-                addCreationDateGeneratedFieldDefinition(collectionName, fieldMappings, indices);
-
-                for (String fieldName : collection.keySet()) {
-                    if (!fieldName.equals("pk") && !fieldName.equals("indices")) {
-                        JsonObject fieldObject = collection.getAsJsonObject(fieldName);
-                        FieldMapping fieldMapping = new FieldMapping();
-                        fieldMapping.setSourceName(fieldName);
-
-                        if (fieldObject.has("dest")) {
-                            fieldMapping.setDestinationName(fieldObject.get("dest").getAsString());
-                        } else {
-                            fieldMapping.setDestinationName(fieldMapping.getSourceName());
-                        }
-
-                        fieldMapping.setType(fieldObject.get("type").getAsString());
-                        fieldMappings.add(fieldMapping);
-
-                        if (fieldObject.has("index")) {
-                            fieldMapping.setIndexed(fieldObject.get("index").getAsBoolean());
-                            addToIndices(collectionName, indices, fieldMapping);
-                        }
-
-                        if (fieldObject.has("fk")) {
-                            fieldMapping.setForeignKey(fieldObject.get("fk").getAsString());
-                        }
-
-                        if (fieldObject.has("valueField")) {
-                            fieldMapping.setScalarFieldDestinationName(fieldObject.get("valueField").getAsString());
-                        }
-                    }
-                }
-                if (!tableMapping.getByDestinationName(tableMapping.getPrimaryKey()).isPresent()) {
-                    tableMapping.getFieldMappings().add(
-                            new FieldMapping(
-                                    "", "id", "VARCHAR", true, null, null
-                            )
-                    );
-                }
-            }
         }
         mappingConfigs.setDatabaseMappings(dbs);
 
         checkIntegrity(mappingConfigs);
 
         return mappingConfigs;
+    }
+
+    private DatabaseMapping readDatabaseMapping(JsonObject mappings, String dbName) {
+        List<TableMapping> tableMappings = new ArrayList<>();
+        DatabaseMapping db = new DatabaseMapping();
+        db.setTableMappings(tableMappings);
+        db.setName(dbName);
+
+        JsonObject database = mappings.getAsJsonObject(dbName);
+        for (String collectionName : database.keySet()) {
+            TableMapping tableMapping = readTableMapping(database, collectionName);
+            tableMappings.add(tableMapping);
+        }
+        return db;
+    }
+
+    private TableMapping readTableMapping(JsonObject database, String collectionName) {
+        List<FieldMapping> fieldMappings = new ArrayList<>();
+        List<String> indices = new ArrayList<>();
+        TableMapping tableMapping = new TableMapping();
+        tableMapping.setIndices(indices);
+        tableMapping.setSourceCollection(collectionName);
+        tableMapping.setDestinationName(collectionName);
+
+        tableMapping.setFieldMappings(fieldMappings);
+        JsonObject collection = database.getAsJsonObject(collectionName);
+        tableMapping.setPrimaryKey(collection.get("pk").getAsString());
+
+        addIndices(indices, collection);
+        addCreationDateGeneratedFieldDefinition(collectionName, fieldMappings, indices);
+
+        for (String fieldName : collection.keySet()) {
+            if (!fieldName.equals("pk") && !fieldName.equals("indices")) {
+                FieldMapping fieldMapping = readFieldMapping(collectionName, indices, collection, fieldName);
+                fieldMappings.add(fieldMapping);
+            }
+        }
+        if (!tableMapping.getByDestinationName(tableMapping.getPrimaryKey()).isPresent()) {
+            tableMapping.getFieldMappings().add(
+                    new FieldMapping(
+                            "", "id", "VARCHAR", true, null, null
+                    )
+            );
+        }
+        return tableMapping;
+    }
+
+    private void addIndices(List<String> indices, JsonObject collection) {
+        if (collection.has("indices")) {
+            JsonArray listOfIndices = collection.get("indices").getAsJsonArray();
+            for (JsonElement index : listOfIndices) {
+                indices.add(index.getAsString());
+            }
+        }
+    }
+
+    private FieldMapping readFieldMapping(String collectionName, List<String> indices, JsonObject collection, String fieldName) {
+        JsonObject fieldObject = collection.getAsJsonObject(fieldName);
+        FieldMapping fieldMapping = new FieldMapping();
+        fieldMapping.setSourceName(fieldName);
+
+        if (fieldObject.has("dest")) {
+            fieldMapping.setDestinationName(fieldObject.get("dest").getAsString());
+        } else {
+            fieldMapping.setDestinationName(fieldMapping.getSourceName());
+        }
+
+        fieldMapping.setType(fieldObject.get("type").getAsString());
+
+
+        if (fieldObject.has("index")) {
+            fieldMapping.setIndexed(fieldObject.get("index").getAsBoolean());
+            addToIndices(collectionName, indices, fieldMapping);
+        }
+
+        if (fieldObject.has("fk")) {
+            fieldMapping.setForeignKey(fieldObject.get("fk").getAsString());
+        }
+
+        if (fieldObject.has("valueField")) {
+            fieldMapping.setScalarFieldDestinationName(fieldObject.get("valueField").getAsString());
+        }
+        return fieldMapping;
     }
 
     private void checkIntegrity(Mappings mappingConfigs) {

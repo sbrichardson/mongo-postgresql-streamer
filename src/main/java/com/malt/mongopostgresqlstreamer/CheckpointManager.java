@@ -28,6 +28,8 @@ import static com.mongodb.client.model.Filters.*;
 @Slf4j
 public class CheckpointManager {
 
+    public static final String OPLOG_COLLECTION_NAME = "oplog.rs";
+
     @Value(value = "${mongo.connector.identifier:test}")
     private String identifier;
 
@@ -39,7 +41,7 @@ public class CheckpointManager {
     private MongoDatabase oplog;
 
     public BsonTimestamp getLastOplog() {
-        Document lastOplog = oplog.getCollection("oplog.rs").find()
+        Document lastOplog = oplog.getCollection(OPLOG_COLLECTION_NAME).find()
                 .sort(Sorts.descending("$natural"))
                 .first();
 
