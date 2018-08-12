@@ -109,21 +109,6 @@ public class OplogStreamer {
         return timestamp;
     }
 
-    private void remove(Document document) {
-        Object id = document.get("o");
-        System.out.println("Remove document by id : " + id);
-    }
-
-    private void update(Document document) {
-
-    }
-
-    private void insert(Document document) {
-        Object doc = document.get("o");
-        System.out.println("Insert new doc : " + doc);
-    }
-
-
     private Bson oplogfilters(Optional<BsonTimestamp> checkpoint) {
         if (checkpoint.isPresent()) {
             return and(

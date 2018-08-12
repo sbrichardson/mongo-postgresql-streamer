@@ -63,6 +63,9 @@ public class MappingsManager {
                         indices.add(index.getAsString());
                     }
                 }
+
+                addCreationDateGeneratedFieldDefinition(collectionName, fieldMappings, indices);
+
                 for (String fieldName : collection.keySet()) {
                     if (!fieldName.equals("pk") && !fieldName.equals("indices")) {
                         JsonObject fieldObject = collection.getAsJsonObject(fieldName);
@@ -80,9 +83,7 @@ public class MappingsManager {
 
                         if (fieldObject.has("index")) {
                             fieldMapping.setIndexed(fieldObject.get("index").getAsBoolean());
-                            indices.add(String.format("INDEX idx_%s_%s ON %s (%s)",
-                                    collectionName.replace(".", "_"),
-                                    fieldMapping.getDestinationName(), collectionName, fieldMapping.getDestinationName()));
+                            addToIndices(collectionName, indices, fieldMapping);
                         }
 
                         if (fieldObject.has("fk")) {
@@ -94,7 +95,6 @@ public class MappingsManager {
                         }
                     }
                 }
-
                 if (!tableMapping.getByDestinationName(tableMapping.getPrimaryKey()).isPresent()) {
                     tableMapping.getFieldMappings().add(
                             new FieldMapping(
@@ -107,6 +107,22 @@ public class MappingsManager {
         mappingConfigs.setDatabaseMappings(dbs);
 
         return mappingConfigs;
+    }
+
+    private void addToIndices(String collectionName, List<String> indices, FieldMapping fieldMapping) {
+        indices.add(String.format("INDEX idx_%s_%s ON %s (%s)",
+                collectionName.replace(".", "_"),
+                fieldMapping.getDestinationName(), collectionName, fieldMapping.getDestinationName()));
+    }
+
+    private void addCreationDateGeneratedFieldDefinition(String collectionName, List<FieldMapping> fieldMappings, List<String> indices) {
+        FieldMapping creationDateDefinition = new FieldMapping();
+        creationDateDefinition.setType("TIMESTAMP");
+        creationDateDefinition.setDestinationName("_creationdate");
+        creationDateDefinition.setIndexed(true);
+        creationDateDefinition.setSourceName("_creationdate");
+        fieldMappings.add(creationDateDefinition);
+        addToIndices(collectionName, indices,  creationDateDefinition);
     }
 
 
