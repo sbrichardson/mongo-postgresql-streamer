@@ -3,7 +3,6 @@ package com.malt.mongopostgresqlstreamer.model;
 import com.github.wnameless.json.flattener.FlattenMode;
 import com.github.wnameless.json.flattener.JsonFlattener;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
 import java.util.HashMap;
