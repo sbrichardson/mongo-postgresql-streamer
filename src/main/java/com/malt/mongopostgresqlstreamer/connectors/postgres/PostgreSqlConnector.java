@@ -11,6 +11,7 @@ import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -173,7 +174,7 @@ public class PostgreSqlConnector implements Connector {
 
             Object foreignKeyValue = getPrimaryKeyValue(document, tableMapping);
 
-            removeByForeignKey(relatedCollection, foreignKey, foreignKeyValue, mappings);
+            removeByForeignKey(optFieldMapping.get().getDestinationName(), foreignKey, foreignKeyValue, mappings);
         }
     }
 
@@ -322,6 +323,9 @@ public class PostgreSqlConnector implements Connector {
     private Object transform(Object value, String type) {
         if (type.equalsIgnoreCase("_PRESENCE")) {
             return value != null;
+        }
+        if (type.startsWith("DOUBLE PRECISION") && value instanceof String) {
+            return new BigDecimal((String)value);
         }
         return value;
     }
