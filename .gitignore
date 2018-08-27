@@ -8,3 +8,5 @@
 *.ipr
 
 mappings.json
+
+application-dev.yml
