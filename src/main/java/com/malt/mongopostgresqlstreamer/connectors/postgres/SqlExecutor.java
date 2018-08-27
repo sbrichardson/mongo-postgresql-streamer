@@ -40,8 +40,13 @@ public class SqlExecutor {
         values.addAll(values); // Duplicates are needed for the UPDATE clause
         Object[] valuesArray = values.toArray();
 
-        log.trace("{} {}", query, valuesArray);
-        jdbcTemplate.update(query, valuesArray);
+        log.debug("{} {}", query, valuesArray);
+        try {
+            jdbcTemplate.update(query, valuesArray);
+        } catch (Exception e) {
+            log.error("Unable to upsert record with values : {}", getValues(fields), e);
+            throw e;
+        }
     }
 
     void batchInsert(String table, List<FieldMapping> mappings, List<Field> fields) {
@@ -76,10 +81,16 @@ public class SqlExecutor {
 
     void remove(String table, String primaryKey, Object primaryKeyValue) {
         log.debug("Remove document where '{} = {}' from {}", primaryKey, primaryKeyValue, table);
-        jdbcTemplate.update(
-                format("DELETE FROM %s WHERE %s = ? ", table, primaryKey),
-                primaryKeyValue
-        );
+
+        try {
+            jdbcTemplate.update(
+                    format("DELETE FROM %s WHERE %s = ? ", table, primaryKey),
+                    primaryKeyValue
+            );
+        } catch (Exception e) {
+            log.error("Unable to delete record : {}", primaryKey, e);
+            throw e;
+        }
     }
 
     private void sqlExecute(String query, Object... parameters) {

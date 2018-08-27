@@ -1,7 +1,6 @@
 package com.malt.mongopostgresqlstreamer;
 
 import com.malt.mongopostgresqlstreamer.connectors.Connector;
-import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
@@ -74,8 +73,8 @@ public class OplogStreamer {
             if (lastKnownOplog == null) {
                 log.error("Last known oplog is not in the oplog anymore. The watch will starts from first " +
                         "oplog but you should consider relaunch a reimport");
+                checkpoint = Optional.empty();
             }
-            checkpoint = Optional.empty();
         }
         return oplog.find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait).noCursorTimeout(true);
     }
