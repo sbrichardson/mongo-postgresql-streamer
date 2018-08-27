@@ -5,6 +5,7 @@ import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoQueryException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -57,6 +58,12 @@ public class OplogStreamer {
                 BsonTimestamp timestamp = processOperation(document);
                 checkpointManager.keep(timestamp);
             });
+        } catch (MongoQueryException e) {
+            if (e.getErrorMessage().contains("CappedPositionLost")) {
+                watchFromCheckpoint(checkpoint);
+            } else {
+                throw  e;
+            }
         }
     }
 
