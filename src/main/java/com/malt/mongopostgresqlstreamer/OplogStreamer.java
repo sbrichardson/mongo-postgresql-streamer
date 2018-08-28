@@ -4,10 +4,8 @@ import com.malt.mongopostgresqlstreamer.connectors.Connector;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
-import com.mongodb.MongoQueryException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
@@ -52,17 +50,9 @@ public class OplogStreamer {
 
     public void watchFromCheckpoint(Optional<BsonTimestamp> checkpoint) {
         log.info("Start watching the oplog...");
-        try (MongoCursor<Document> documents = oplogDocuments(checkpoint).iterator()) {
-            documents.forEachRemaining(document -> {
-                BsonTimestamp timestamp = processOperation(document);
-                checkpointManager.keep(timestamp);
-            });
-        } catch (MongoQueryException e) {
-            if (e.getErrorMessage().contains("CappedPositionLost")) {
-                watchFromCheckpoint(checkpoint);
-            } else {
-                throw  e;
-            }
+        for (Document document : oplogDocuments(checkpoint)) {
+            BsonTimestamp timestamp = processOperation(document);
+            checkpointManager.keep(timestamp);
         }
     }
 
@@ -76,7 +66,7 @@ public class OplogStreamer {
                 checkpoint = Optional.empty();
             }
         }
-        return oplog.find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait).noCursorTimeout(true);
+        return oplog.find(oplogfilters(checkpoint)).cursorType(CursorType.TailableAwait);
     }
 
     @Transactional
