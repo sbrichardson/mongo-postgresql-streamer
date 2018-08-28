@@ -3,6 +3,7 @@ package com.malt.mongopostgresqlstreamer;
 import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
 import com.malt.mongopostgresqlstreamer.model.Mappings;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import com.malt.mongopostgresqlstreamer.monitoring.InitialImport;
 import com.mongodb.BasicDBObject;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
@@ -11,6 +12,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.model.Updates;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
@@ -24,10 +26,13 @@ import javax.annotation.PostConstruct;
 import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
 import static com.mongodb.client.model.Filters.*;
+import static com.mongodb.client.model.Updates.combine;
+import static com.mongodb.client.model.Updates.set;
 
 @Service
 @Slf4j
@@ -88,7 +93,7 @@ public class CheckpointManager {
         MongoCollection<Document> oplogOffset = database.getCollection("mongooplog");
         Document lastProcessedOplog = oplogOffset.find(eq("_id", identifier)).first();
         Optional<BsonTimestamp> checkpoint = Optional.empty();
-        if (lastProcessedOplog != null) {
+        if (lastProcessedOplog != null && lastProcessedOplog.get("ts", BsonTimestamp.class) != null) {
             checkpoint = Optional.ofNullable(lastProcessedOplog.get("ts", BsonTimestamp.class));
             log.info("Checkpoint found in the administrative database : {}.", checkpoint.get().toString());
         }
@@ -98,13 +103,40 @@ public class CheckpointManager {
 
     public void keep(BsonTimestamp timestamp) {
         MongoCollection<Document> collection = database.getCollection("mongooplog");
-        Document offset = new Document("_id", identifier);
-        offset.append("ts", timestamp);
-        Object id = offset.get("_id");
-        if (id == null) {
-            collection.insertOne(offset);
-        } else {
-            collection.replaceOne(eq("_id", id), offset, new UpdateOptions().upsert(true));
-        }
+        collection.updateOne(eq("_id", identifier), set("ts", timestamp), new UpdateOptions().upsert(true));
+    }
+
+    public void storeImportStart() {
+        MongoCollection<Document> collection = database.getCollection("mongooplog");
+        collection.updateOne(eq("_id", identifier), combine(
+                set("import", "running"),
+                set("date", new Date())
+        ), new UpdateOptions().upsert(true));
+    }
+
+    public void storeImportEnd(float length) {
+        float lenghtInMinutes = (length/1000F)/60F;
+
+        MongoCollection<Document> collection = database.getCollection("mongooplog");
+        collection.updateOne(eq("_id", identifier), combine(
+                set("import", "done"),
+                set("length", lenghtInMinutes)
+                )
+                , new UpdateOptions().upsert(true));
+
+    }
+
+    public InitialImport lastImportStatus() {
+        MongoCollection<Document> collection = database.getCollection("mongooplog");
+        Document status = collection.find(eq("_id", identifier)).first();
+        Date date = status.getDate("date");
+        String state = status.getString("import");
+        Double length = status.getDouble("length");
+
+        InitialImport initialImport = new InitialImport();
+        initialImport.setLastImport(date);
+        initialImport.setStatus(state);
+        initialImport.setLengthInMinutes(length);
+        return initialImport;
     }
 }
