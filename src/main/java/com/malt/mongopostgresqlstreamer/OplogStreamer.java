@@ -129,17 +129,15 @@ public class OplogStreamer {
 
     private Bson oplogfilters(Optional<BsonTimestamp> checkpoint) {
         return checkpoint.map(bsonTimestamp -> and(
+                in("ns", mappingsManager.mappedNamespaces()),
                 gt("ts", bsonTimestamp),
                 exists("fromMigrate", false),
-                in("op", "d", "u", "i"),
-                ne("ns", adminDatabase.getName() + ".mongooplog"),
-                regex("ns", adminDatabase.getName())))
+                in("op", "d", "u", "i")))
 
                 .orElseGet(() -> and(
-                ne("ns", adminDatabase.getName() + ".mongooplog"),
+                in("ns", mappingsManager.mappedNamespaces()),
                 exists("fromMigrate", false),
-                in("op", "d", "u", "i"),
-                regex("ns", adminDatabase.getName())));
+                in("op", "d", "u", "i")));
     }
 
 

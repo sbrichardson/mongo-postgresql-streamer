@@ -171,5 +171,14 @@ public class MappingsManager {
         addToIndices(collectionName, indices,  creationDateDefinition);
     }
 
-
+    public List<String> mappedNamespaces() {
+        List<String> namespaces = new ArrayList<>();
+        for (DatabaseMapping db : mappingConfigs.getDatabaseMappings()) {
+            for (TableMapping tableMapping : db.getTableMappings()) {
+                String namespace = db.getName() + "." + tableMapping.getDestinationName();
+                namespaces.add(namespace);
+            }
+        }
+        return namespaces;
+    }
 }

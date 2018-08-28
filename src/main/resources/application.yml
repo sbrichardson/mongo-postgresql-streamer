@@ -4,3 +4,5 @@ spring:
     platform: postgresql
 
 management.endpoints.web.exposure.include: metrics, health, env, loggers
+
+management.endpoint.health.show-details: always
