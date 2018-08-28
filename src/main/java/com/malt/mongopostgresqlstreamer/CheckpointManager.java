@@ -97,7 +97,7 @@ public class CheckpointManager {
         MongoCollection<Document> collection = database.getCollection("mongooplog");
         collection.updateOne(eq("_id", identifier), combine(
                 set("import", "running"),
-                set("date", new Date())
+                set("start", new Date())
         ), new UpdateOptions().upsert(true));
     }
 
@@ -107,6 +107,7 @@ public class CheckpointManager {
         MongoCollection<Document> collection = database.getCollection("mongooplog");
         collection.updateOne(eq("_id", identifier), combine(
                 set("import", "done"),
+                set("end", new Date()),
                 set("length", lenghtInMinutes)
                 )
                 , new UpdateOptions().upsert(true));
@@ -116,12 +117,14 @@ public class CheckpointManager {
     public InitialImport lastImportStatus() {
         MongoCollection<Document> collection = database.getCollection("mongooplog");
         Document status = collection.find(eq("_id", identifier)).first();
-        Date date = status.getDate("date");
+        Date start = status.getDate("start");
+        Date end = status.getDate("end");
         String state = status.getString("import");
         Double length = status.getDouble("length");
 
         InitialImport initialImport = new InitialImport();
-        initialImport.setLastImport(date);
+        initialImport.setStart(start);
+        initialImport.setEnd(end);
         initialImport.setStatus(state);
         initialImport.setLengthInMinutes(length);
         return initialImport;

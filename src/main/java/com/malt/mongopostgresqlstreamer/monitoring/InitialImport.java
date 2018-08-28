@@ -7,6 +7,7 @@ import java.util.Date;
 @Data
 public class InitialImport {
     private Double lengthInMinutes;
-    private Date lastImport;
+    private Date start;
+    private Date end;
     private String status;
 }
