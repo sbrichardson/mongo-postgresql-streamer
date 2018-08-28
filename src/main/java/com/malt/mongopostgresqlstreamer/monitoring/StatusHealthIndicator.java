@@ -22,15 +22,15 @@ public class StatusHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
 
-        Lag lag = new Lag();
-        Optional<BsonTimestamp> lastKnown = checkpointManager.getLastKnown();
-        Optional<BsonTimestamp> lastOplog = checkpointManager.getLastOplogForMappedCollections();
-        long count = checkpointManager.countSinceTsForMappedCollections(lastKnown);
-        lag.computeFromCheckpointAndOplog(lastKnown, lastOplog, count);
-        InitialImport initialImport = checkpointManager.lastImportStatus();
+//        Lag lag = new Lag();
+//        Optional<BsonTimestamp> lastKnown = checkpointManager.getLastKnown();
+//        Optional<BsonTimestamp> lastOplog = checkpointManager.getLastOplogForMappedCollections();
+//        long count = checkpointManager.countSinceTsForMappedCollections(lastKnown);
+//        lag.computeFromCheckpointAndOplog(lastKnown, lastOplog, count);
+//        InitialImport initialImport = checkpointManager.lastImportStatus();
         return Health.up()
-                .withDetail("lag", lag)
-                .withDetail("initial", initialImport)
+//                .withDetail("lag", lag)
+//                .withDetail("initial", initialImport)
                 .build();
     }
 }
