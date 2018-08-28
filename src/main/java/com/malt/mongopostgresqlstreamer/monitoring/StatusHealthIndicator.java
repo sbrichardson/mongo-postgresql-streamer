@@ -24,7 +24,7 @@ public class StatusHealthIndicator implements HealthIndicator {
 
         Lag lag = new Lag();
         Optional<BsonTimestamp> lastKnown = checkpointManager.getLastKnown();
-        BsonTimestamp lastOplog = checkpointManager.getLastOplogForMappedCollections();
+        Optional<BsonTimestamp> lastOplog = checkpointManager.getLastOplogForMappedCollections();
         long count = checkpointManager.countSinceTsForMappedCollections(lastKnown);
         lag.computeFromCheckpointAndOplog(lastKnown, lastOplog, count);
         InitialImport initialImport = checkpointManager.lastImportStatus();

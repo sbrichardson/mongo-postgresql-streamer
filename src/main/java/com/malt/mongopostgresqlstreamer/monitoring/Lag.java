@@ -13,13 +13,16 @@ public class Lag {
     private long lagCount;
     private long lagLength;
 
-    public void computeFromCheckpointAndOplog(Optional<BsonTimestamp> lastKnown, BsonTimestamp lastOplog, long count) {
+    public void computeFromCheckpointAndOplog(Optional<BsonTimestamp> lastKnown, Optional<BsonTimestamp> lastOplog, long count) {
         lastKnown.ifPresent( checkpoint -> {
             lastCheckpoint = new Date(((long)checkpoint.getTime())*1000);
-            currentOplog = new Date(((long)lastOplog.getTime())*1000);
-            if (lastOplog.getTime() > checkpoint.getTime()) {
-                lagLength = lastOplog.getTime() - checkpoint.getTime();
-            }
+
+            currentOplog = lastOplog.map( t -> new Date(((long)t.getTime())*1000)).orElse(null);
+            lastOplog.ifPresent(last -> {
+                if (last.getTime() > checkpoint.getTime()) {
+                    lagLength = last.getTime() - checkpoint.getTime();
+                }
+            });
             lagCount = count;
         });
     }

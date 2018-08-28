@@ -1,31 +1,18 @@
 package com.malt.mongopostgresqlstreamer;
 
-import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
-import com.malt.mongopostgresqlstreamer.model.Mappings;
-import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import com.malt.mongopostgresqlstreamer.monitoring.InitialImport;
-import com.mongodb.BasicDBObject;
-import com.mongodb.CursorType;
-import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.swing.text.html.Option;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -65,16 +52,16 @@ public class CheckpointManager {
 
     }
 
-    public BsonTimestamp getLastOplogForMappedCollections() {
+    public Optional<BsonTimestamp> getLastOplogForMappedCollections() {
         List<String> namespaces = mappingsManager.mappedNamespaces();
         Document lastOplog = oplog.getCollection(OPLOG_COLLECTION_NAME).find(in("ns", namespaces))
                 .sort(Sorts.descending("$natural"))
                 .first();
 
-        if (lastOplog != null) {
-            return lastOplog.get("ts", BsonTimestamp.class);
+        if (lastOplog != null && lastOplog.get("ts", BsonTimestamp.class) != null) {
+            return Optional.ofNullable(lastOplog.get("ts", BsonTimestamp.class));
         }
-        throw new IllegalStateException("Unable to retrieve last oplog. Maybe you are not running your mongodb in a replica set");
+        return Optional.empty();
     }
 
 
