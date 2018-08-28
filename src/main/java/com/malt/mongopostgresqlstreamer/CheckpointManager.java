@@ -14,10 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 
-import static com.mongodb.client.model.Filters.*;
+import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Updates.combine;
 import static com.mongodb.client.model.Updates.set;
 
@@ -38,32 +37,6 @@ public class CheckpointManager {
     @Autowired
     @Qualifier("oplog")
     private MongoDatabase oplog;
-
-    public long countSinceTsForMappedCollections(Optional<BsonTimestamp> oCheckpoint) {
-        return oCheckpoint.map(checkpoint -> {
-            List<String> namespaces = mappingsManager.mappedNamespaces();
-            return oplog.getCollection(OPLOG_COLLECTION_NAME).count(
-                    and(
-                            in("ns", namespaces),
-                            gt("ts", checkpoint.getValue())
-                    )
-            );
-        }).orElse(0L);
-
-    }
-
-    public Optional<BsonTimestamp> getLastOplogForMappedCollections() {
-        List<String> namespaces = mappingsManager.mappedNamespaces();
-        Document lastOplog = oplog.getCollection(OPLOG_COLLECTION_NAME).find(in("ns", namespaces))
-                .sort(Sorts.descending("$natural"))
-                .first();
-
-        if (lastOplog != null && lastOplog.get("ts", BsonTimestamp.class) != null) {
-            return Optional.ofNullable(lastOplog.get("ts", BsonTimestamp.class));
-        }
-        return Optional.empty();
-    }
-
 
     public BsonTimestamp getLastOplog() {
         Document lastOplog = oplog.getCollection(OPLOG_COLLECTION_NAME).find()
