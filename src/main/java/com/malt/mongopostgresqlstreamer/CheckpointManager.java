@@ -30,8 +30,6 @@ public class CheckpointManager {
     private String identifier;
 
     @Autowired
-    private MappingsManager mappingsManager;
-    @Autowired
     @Qualifier("database")
     private MongoDatabase database;
     @Autowired

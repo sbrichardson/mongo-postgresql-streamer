@@ -46,7 +46,15 @@ public class StreamerApplication implements ApplicationRunner {
             checkpointManager.storeImportEnd(length);
         }
 
-        oplogStreamer.watchFromCheckpoint(checkpoint);
+        try {
+            oplogStreamer.watchFromCheckpoint(checkpoint);
+        } catch (IllegalStateException e) {
+            // state should be: open is throw when the application is stopped and the connection pool stop
+            // this is not an error however
+            if (!e.getMessage().contains("state should be: open")) {
+                throw e;
+            }
+        }
     }
 
 }
