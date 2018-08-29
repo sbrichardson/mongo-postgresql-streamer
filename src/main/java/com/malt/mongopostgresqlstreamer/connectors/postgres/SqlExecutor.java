@@ -63,6 +63,11 @@ public class SqlExecutor {
         sqlExecute("DROP TABLE IF EXISTS %s", table);
     }
 
+    void setTableAsLogged(String table) {
+        log.debug("Set table '{}' as logged ...", table);
+        sqlExecute("ALTER TABLE %s SET LOGGED", table);
+    }
+
     void addPrimaryKey(String table, String primaryKeyName) {
         log.debug("Adding primary key '{}' on table '{}' ...", primaryKeyName, table);
         sqlExecute("ALTER TABLE %s ADD PRIMARY KEY(%s)", table, primaryKeyName);
@@ -71,7 +76,7 @@ public class SqlExecutor {
     void createTable(String table, List<FieldMapping> fieldMappings) {
         String formattedFields = fieldAndTypes(fieldMappings);
         log.debug("Creating table '{}' with fields {}", table, formattedFields);
-        sqlExecute("CREATE TABLE %s (%s)", table, formattedFields);
+        sqlExecute("CREATE UNLOGGED TABLE %s (%s)", table, formattedFields);
     }
 
     void createIndex(String index) {

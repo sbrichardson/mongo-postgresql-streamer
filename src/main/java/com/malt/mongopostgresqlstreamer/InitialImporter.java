@@ -7,6 +7,7 @@ import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.stream.StreamSupport;
 import static java.util.stream.Collectors.toList;
 
 @Service
+@Slf4j
 public class InitialImporter {
 
     @Autowired
@@ -34,6 +36,7 @@ public class InitialImporter {
     public void start() {
         createSchema();
         populateData();
+        addConstraints();
     }
 
     private void populateData() {
@@ -77,6 +80,25 @@ public class InitialImporter {
                             .anyMatch(collectionIsMapped(tableMapping));
                     if (needToBeImported) {
                         connector.createTable(tableMapping.getSourceCollection(), databaseMapping);
+                    }
+                }
+            }
+        }
+    }
+
+    @Transactional
+    protected void addConstraints() {
+        log.info("Add constraints");
+        for (DatabaseMapping databaseMapping : mappingsManager.mappingConfigs.getDatabaseMappings()) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(databaseMapping.getName());
+            List<String> collectionNames = toStream(mongoDatabase.listCollectionNames().iterator()).collect(toList());
+            for (Connector connector : connectors) {
+                for (TableMapping tableMapping : databaseMapping.getTableMappings()) {
+                    boolean needToBeImported = collectionNames
+                            .stream()
+                            .anyMatch(collectionIsMapped(tableMapping));
+                    if (needToBeImported) {
+                        connector.addConstraints(tableMapping.getSourceCollection(), databaseMapping);
                     }
                 }
             }

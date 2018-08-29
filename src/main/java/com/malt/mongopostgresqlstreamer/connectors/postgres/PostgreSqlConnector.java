@@ -40,6 +40,21 @@ public class PostgreSqlConnector implements Connector {
 
         sqlExecutor.dropTable(tableMapping.getDestinationName());
         sqlExecutor.createTable(tableMapping.getDestinationName(), tableMapping.getFieldMappings());
+
+        List<String> relatedTables = getRelatedTables(tableMapping);
+        for (String relatedTable : relatedTables) {
+            createTable(relatedTable, mapping);
+        }
+    }
+
+    @Override
+    public void addConstraints(
+            String sourceCollection,
+            DatabaseMapping mapping
+    ) {
+        TableMapping tableMapping = getTableMappingOrFail(sourceCollection, mapping);
+
+        sqlExecutor.setTableAsLogged(tableMapping.getDestinationName());
         sqlExecutor.addPrimaryKey(tableMapping.getDestinationName(), tableMapping.getPrimaryKey());
 
         for (String index : tableMapping.getIndices()) {
@@ -48,7 +63,7 @@ public class PostgreSqlConnector implements Connector {
 
         List<String> relatedTables = getRelatedTables(tableMapping);
         for (String relatedTable : relatedTables) {
-            createTable(relatedTable, mapping);
+            addConstraints(relatedTable, mapping);
         }
     }
 

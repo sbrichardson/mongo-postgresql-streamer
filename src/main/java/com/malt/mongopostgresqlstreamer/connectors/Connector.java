@@ -13,6 +13,11 @@ public interface Connector {
 
     void insert(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
 
+    void addConstraints(
+            String sourceCollection,
+            DatabaseMapping mapping
+    );
+
     void upsert(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
 
     void update(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
