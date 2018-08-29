@@ -53,7 +53,7 @@ public class CheckpointManager {
         Optional<BsonTimestamp> checkpoint = Optional.empty();
         if (lastProcessedOplog != null && lastProcessedOplog.get("ts", BsonTimestamp.class) != null) {
             checkpoint = Optional.ofNullable(lastProcessedOplog.get("ts", BsonTimestamp.class));
-            log.info("Checkpoint found in the administrative database : {}.", checkpoint.get().toString());
+            log.debug("Checkpoint found in the administrative database : {}.", checkpoint.get().toString());
         }
         return checkpoint;
     }
