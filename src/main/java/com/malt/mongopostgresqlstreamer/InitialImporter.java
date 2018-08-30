@@ -59,7 +59,7 @@ public class InitialImporter {
                                                 .noCursorTimeout(true)
                                                 .iterator()
                                 )
-                                        .map(FlattenMongoDocument::fromMap),
+                                        .map(FlattenMongoDocument::fromDocument),
                                 databaseMapping
                         );
                     }

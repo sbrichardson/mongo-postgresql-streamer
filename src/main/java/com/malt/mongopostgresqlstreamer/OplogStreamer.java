@@ -84,11 +84,11 @@ public class OplogStreamer {
                 log.debug("Operation {} detected on {}", operation, namespace);
                 switch (operation) {
                     case "i":
-                        Map newDocument = (Map) document.get("o");
+                        Document newDocument = (Document) document.get("o");
                         connectors.forEach(connector ->
                                 connector.insert(
                                         collection,
-                                        FlattenMongoDocument.fromMap(newDocument),
+                                        FlattenMongoDocument.fromDocument(newDocument),
                                         mappings
                                 )
                         );
@@ -102,18 +102,18 @@ public class OplogStreamer {
                             connectors.forEach(connector ->
                                     connector.update(
                                             collection,
-                                            FlattenMongoDocument.fromMap(updatedDocument),
+                                            FlattenMongoDocument.fromDocument(updatedDocument),
                                             mappings
                                     )
                             );
                         }
                         break;
                     case "d":
-                        Map documentIdToRemove = (Map) document.get("o");
+                        Document documentIdToRemove = (Document) document.get("o");
                         connectors.forEach(connector ->
                                 connector.remove(
                                         collection,
-                                        FlattenMongoDocument.fromMap(documentIdToRemove),
+                                        FlattenMongoDocument.fromDocument(documentIdToRemove),
                                         mappings
                                 )
                         );
