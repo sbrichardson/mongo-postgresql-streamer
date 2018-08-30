@@ -16,11 +16,7 @@ public class FlattenMongoDocument {
     private Map<String, Object> values;
 
     public static FlattenMongoDocument fromMap(Map map) {
-        FlattenMongoDocument flattenMongoDocument = new FlattenMongoDocument();
-        flattenMongoDocument.setValues(map);
-        addCreationDateIfPossible(flattenMongoDocument);
-
-        return flattenMongoDocument;
+        return fromDocument(new Document(map));
     }
 
 
