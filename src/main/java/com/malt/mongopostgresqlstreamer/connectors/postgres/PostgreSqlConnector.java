@@ -182,7 +182,7 @@ public class PostgreSqlConnector implements Connector {
 
             String foreignKey = optFieldMapping.get().getForeignKey();
             if (isBlank(foreignKey)) {
-                log.error("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
+                log.warn("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
                 continue;
             }
 
@@ -204,7 +204,7 @@ public class PostgreSqlConnector implements Connector {
 
             String foreignKey = optFieldMapping.get().getForeignKey();
             if (isBlank(foreignKey)) {
-                log.error("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
+                log.warn("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
                 continue;
             }
 
