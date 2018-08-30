@@ -71,9 +71,15 @@ public class FlattenMongoDocumentTest {
                 .isNotNull()
                 .isInstanceOf(Date.class);
 
+
+        document.put("anotherdate.$date", new Date().getTime());
         flattenMongoDocument = FlattenMongoDocument.fromMap(document);
         assertThat(flattenMongoDocument.get("date")).isPresent();
         assertThat(flattenMongoDocument.get("date").get())
+                .isNotNull()
+                .isInstanceOf(Date.class);
+        assertThat(flattenMongoDocument.get("anotherdate")).isPresent();
+        assertThat(flattenMongoDocument.get("anotherdate").get())
                 .isNotNull()
                 .isInstanceOf(Date.class);
     }
