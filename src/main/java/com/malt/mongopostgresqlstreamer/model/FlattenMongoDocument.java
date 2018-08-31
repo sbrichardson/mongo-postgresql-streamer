@@ -20,6 +20,7 @@ public class FlattenMongoDocument {
         FlattenMongoDocument flattenMongoDocument = new FlattenMongoDocument();
         flattenMongoDocument.setValues(map);
         addCreationDateIfPossible(flattenMongoDocument);
+        fixDateOutOfRange(flattenMongoDocument);
 
         return flattenMongoDocument;
     }
@@ -35,6 +36,7 @@ public class FlattenMongoDocument {
                 )
         );
         addCreationDateIfPossible(flattenMongoDocument);
+        fixDateOutOfRange(flattenMongoDocument);
 
         return flattenMongoDocument;
     }
@@ -73,5 +75,18 @@ public class FlattenMongoDocument {
     public FlattenMongoDocument withField(String key, Object value) {
         this.values.put(key, value);
         return this;
+    }
+
+
+    private static void fixDateOutOfRange(FlattenMongoDocument flattenMongoDocument) {
+        Map<String, Object> values = flattenMongoDocument.getValues();
+        values.forEach((k, v) -> {
+            if (v instanceof Date) {
+                Date date = (Date) v;
+                if ((date.getYear()+1900) < 1900 || (date.getYear()+1900 > 2050) ) {
+                    values.put(k, null);
+                }
+            }
+        });
     }
 }
