@@ -4,6 +4,7 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,5 +83,23 @@ public class FlattenMongoDocumentTest {
         assertThat(flattenMongoDocument.get("anotherdate").get())
                 .isNotNull()
                 .isInstanceOf(Date.class);
+    }
+
+    @Test
+    public void numbers_are_Correctly_Mapped() {
+        Document document = new Document();
+        document.put("long", 500L);
+        document.put("bigdecimal", BigDecimal.TEN);
+        document.put("integer", 200);
+
+        FlattenMongoDocument flattenMongoDocument = FlattenMongoDocument.fromDocument(document);
+        assertThat(flattenMongoDocument.get("bigdecimal").get()).isEqualTo(BigDecimal.TEN);
+        assertThat(flattenMongoDocument.get("long").get()).isEqualTo(500L);
+        assertThat(flattenMongoDocument.get("integer").get()).isEqualTo(new BigDecimal(200));
+
+        flattenMongoDocument = FlattenMongoDocument.fromMap(document);
+        assertThat(flattenMongoDocument.get("bigdecimal").get()).isEqualTo(BigDecimal.TEN);
+        assertThat(flattenMongoDocument.get("long").get()).isEqualTo(500L);
+        assertThat(flattenMongoDocument.get("integer").get()).isEqualTo(200);
     }
 }

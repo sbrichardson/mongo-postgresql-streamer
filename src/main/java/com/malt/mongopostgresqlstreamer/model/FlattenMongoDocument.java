@@ -6,6 +6,7 @@ import lombok.Data;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,12 @@ public class FlattenMongoDocument {
             } else if (k.contains(".$date")) {
                 k = k.replace(".$date", "");
                 v = new Date(((Number) v).longValue());
+            } else if (k.contains(".$numberLong")) {
+                k = k.replace(".$numberLong", "");
+                v = Long.parseLong((String) v);
+            } else if (k.contains(".$numberDecimal")) {
+                k = k.replace(".$numberDecimal", "");
+                v = new BigDecimal((String) v);
             }
             filteredMap.put(k.replace(".$oid", ""), v);
         });
