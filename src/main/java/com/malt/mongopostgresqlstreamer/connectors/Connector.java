@@ -7,22 +7,22 @@ import java.util.stream.Stream;
 
 public interface Connector {
     void createTable(
-            String sourceCollection,
+            String mappingName,
             DatabaseMapping mapping
     );
 
-    void insert(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
+    void insert(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings);
 
     void addConstraints(
-            String sourceCollection,
+            String mappingName,
             DatabaseMapping mapping
     );
 
-    void upsert(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
+    void upsert(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings);
 
-    void update(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
+    void update(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings);
 
-    void remove(String collection, FlattenMongoDocument document, DatabaseMapping mappings);
+    void remove(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings);
 
-    void bulkInsert(String collection, long totalNumberOfDocuments, Stream<FlattenMongoDocument> documents, DatabaseMapping mappings);
+    void bulkInsert(String mappingName, long totalNumberOfDocuments, Stream<FlattenMongoDocument> documents, DatabaseMapping mappings);
 }

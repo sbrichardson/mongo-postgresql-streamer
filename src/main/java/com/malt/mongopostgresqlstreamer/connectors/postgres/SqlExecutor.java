@@ -54,8 +54,8 @@ public class SqlExecutor {
         copyOperationsManager.addInsertOperation(table, mappings, fields);
     }
 
-    public void finalizeBatchInsert(String collection) {
-        copyOperationsManager.finalizeCopyOperations(collection);
+    public void finalizeBatchInsert(String destTable) {
+        copyOperationsManager.finalizeCopyOperations(destTable);
     }
 
     void dropTable(String table) {

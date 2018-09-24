@@ -1,0 +1,42 @@
+{
+  "my_mongo_database":{
+    "my_mongo_collection":{
+      "pk":"id",
+      "indices":[
+        "UNIQUE INDEX subproperty_idx ON my_postgre_table(subproperty)"
+      ],
+      "_id":{
+        "dest":"id",
+        "type":"TEXT"
+      }
+    },
+    "custom_mapping_name": {
+      "_source": "my_mongo_collection",
+      "_destination": "my_destination_table",
+      "pk": "id",
+      "_id":{
+        "dest":"id",
+        "type":"TEXT"
+      },
+      "description": {
+        "dest": "description",
+        "type": "TEXT"
+      }
+    },
+    "filtered_collection": {
+      "pk": "id",
+      "_id":{
+        "dest":"id",
+        "type":"TEXT"
+      },
+      "_filters": [{
+        "field": "name",
+        "value": "foo"
+      }],
+      "name": {
+        "dest": "name",
+        "type": "TEXT"
+      }
+    }
+  }
+}

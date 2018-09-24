@@ -30,13 +30,13 @@ public class PostgreSqlConnector implements Connector {
 
     @Override
     public void createTable(
-            String sourceCollection,
+            String mappingName,
             DatabaseMapping mapping
     ) {
-        log.info("Importing {} from the beginning...", sourceCollection);
-        log.debug("Preparing initial import for collection {}", sourceCollection);
+        TableMapping tableMapping = getTableMappingOrFail(mappingName, mapping);
 
-        TableMapping tableMapping = getTableMappingOrFail(sourceCollection, mapping);
+        log.info("Importing {} from the beginning...", tableMapping.getSourceCollection());
+        log.debug("Preparing initial import for collection {}", tableMapping.getSourceCollection());
 
         sqlExecutor.dropTable(tableMapping.getDestinationName());
         sqlExecutor.createTable(tableMapping.getDestinationName(), tableMapping.getFieldMappings());
@@ -49,10 +49,10 @@ public class PostgreSqlConnector implements Connector {
 
     @Override
     public void addConstraints(
-            String sourceCollection,
+            String mappingName,
             DatabaseMapping mapping
     ) {
-        TableMapping tableMapping = getTableMappingOrFail(sourceCollection, mapping);
+        TableMapping tableMapping = getTableMappingOrFail(mappingName, mapping);
 
         sqlExecutor.setTableAsLogged(tableMapping.getDestinationName());
         sqlExecutor.addPrimaryKey(tableMapping.getDestinationName(), tableMapping.getPrimaryKey());
@@ -68,8 +68,8 @@ public class PostgreSqlConnector implements Connector {
     }
 
     @Override
-    public void upsert(String collection, FlattenMongoDocument document, DatabaseMapping mappings) {
-        TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
+    public void upsert(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
+        TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
         List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
         List<Field> currentTableFields = getCurrentTableFields(mappedFields);
 
@@ -85,17 +85,17 @@ public class PostgreSqlConnector implements Connector {
     }
 
     @Override
-    public void insert(String collection, FlattenMongoDocument document, DatabaseMapping mappings) {
-        upsert(collection, document, mappings);
+    public void insert(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
+        upsert(mappingName, document, mappings);
     }
 
     @Override
-    public void update(String collection, FlattenMongoDocument document, DatabaseMapping mappings) {
-        upsert(collection, document, mappings);
+    public void update(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
+        upsert(mappingName, document, mappings);
     }
 
-    private void removeByForeignKey(String collection, String fieldName, Object value, DatabaseMapping mappings) {
-        TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
+    private void removeByForeignKey(String MappingName, String fieldName, Object value, DatabaseMapping mappings) {
+        TableMapping tableMapping = getTableMappingOrFail(MappingName, mappings);
         sqlExecutor.remove(
                 tableMapping.getDestinationName(),
                 fieldName,
@@ -104,8 +104,8 @@ public class PostgreSqlConnector implements Connector {
     }
 
     @Override
-    public void remove(String collection, FlattenMongoDocument document, DatabaseMapping mappings) {
-        TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
+    public void remove(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
+        TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
 
         sqlExecutor.remove(
                 tableMapping.getDestinationName(),
@@ -115,31 +115,34 @@ public class PostgreSqlConnector implements Connector {
 
     @Override
     public void bulkInsert(
-            String collection, long totalNumberOfDocuments,
+            String mappingName,
+            long totalNumberOfDocuments,
             Stream<FlattenMongoDocument> documents,
             DatabaseMapping mappings
     ) {
-        bulkInsert(collection, totalNumberOfDocuments, documents, mappings, false);
+        bulkInsert(mappingName, totalNumberOfDocuments, documents, mappings, false);
     }
 
     private int bulkInsert(
-            String collection, long totalNumberOfDocuments,
+            String mappingName,
+            long totalNumberOfDocuments,
             Stream<FlattenMongoDocument> documents,
             DatabaseMapping mappings,
             boolean relatedCollection
     ) {
-        if (!relatedCollection) {
-            log.info("Starting bulk insert of collection {} ({} documents)...", collection, totalNumberOfDocuments);
-        } else {
-            log.trace("Starting bulk insert of collection {} ({} documents)...", collection, totalNumberOfDocuments);
-        }
-
         long startTime = System.currentTimeMillis();
 
         AtomicInteger counter = new AtomicInteger();
+        TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
+
+        if (!relatedCollection) {
+            log.info("Starting bulk insert of collection {} ({} documents)...", tableMapping.getSourceCollection(), totalNumberOfDocuments);
+        } else {
+            log.trace("Starting bulk insert of collection {} ({} documents)...", tableMapping.getSourceCollection(), totalNumberOfDocuments);
+        }
+
         documents
                 .forEach(document -> {
-                    TableMapping tableMapping = getTableMappingOrFail(collection, mappings);
                     List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
                     List<Field> currentTableFields = getCurrentTableFields(mappedFields);
 
@@ -161,12 +164,12 @@ public class PostgreSqlConnector implements Connector {
                     }
                 });
 
-        sqlExecutor.finalizeBatchInsert(collection);
+        sqlExecutor.finalizeBatchInsert(tableMapping.getDestinationName());
 
         if (!relatedCollection) {
-            log.info("{} and its related collections was successfully imported ({} documents) !", collection, counter.get());
+            log.info("{} and its related collections was successfully imported ({} documents) !", tableMapping.getSourceCollection(), counter.get());
         } else {
-            log.trace("Bulk insert of collection {} done : {} documents inserted", collection, counter.get());
+            log.trace("Bulk insert of collection {} done : {} documents inserted", tableMapping.getSourceCollection(), counter.get());
         }
 
         return counter.get();
@@ -350,8 +353,8 @@ public class PostgreSqlConnector implements Connector {
                 .collect(toList());
     }
 
-    private TableMapping getTableMappingOrFail(String collection, DatabaseMapping mappings) {
-        return mappings.get(collection)
-                .orElseThrow(() -> new RuntimeException("No mapping defined for collection " + collection + "."));
+    private TableMapping getTableMappingOrFail(String mappingName, DatabaseMapping mappings) {
+        return mappings.get(mappingName)
+                .orElseThrow(() -> new RuntimeException("No defined mapping for mappingName " + mappingName + "."));
     }
 }

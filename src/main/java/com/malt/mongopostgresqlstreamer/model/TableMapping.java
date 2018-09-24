@@ -9,13 +9,14 @@ import java.util.stream.Collectors;
 
 @Data
 public class TableMapping {
-
+    private String mappingName;
     private String sourceCollection;
     private String destinationName;
 
     private String primaryKey;
     private List<FieldMapping> fieldMappings = new ArrayList<>();
     private List<String> indices = new ArrayList<>();
+    private List<FilterMapping> filters = new ArrayList<>();
 
     public Optional<FieldMapping> getByDestinationName(String destinationFieldName) {
         return fieldMappings.stream()

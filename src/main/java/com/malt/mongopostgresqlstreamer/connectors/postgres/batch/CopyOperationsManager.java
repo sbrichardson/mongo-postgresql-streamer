@@ -36,8 +36,8 @@ public class CopyOperationsManager {
         copyOperationsPerTable.get(table).addOperation(fields);
     }
 
-    public void finalizeCopyOperations(String collection) {
-        SingleTableCopyOperations operations = copyOperationsPerTable.get(collection);
+    public void finalizeCopyOperations(String destTable) {
+        SingleTableCopyOperations operations = copyOperationsPerTable.get(destTable);
         if (operations != null) {
             operations.finalizeOperations();
         }

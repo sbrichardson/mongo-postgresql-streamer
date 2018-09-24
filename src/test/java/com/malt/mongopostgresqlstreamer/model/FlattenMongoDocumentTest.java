@@ -2,17 +2,17 @@ package com.malt.mongopostgresqlstreamer.model;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class FlattenMongoDocumentTest {
+class FlattenMongoDocumentTest {
 
     @Test
-    public void id_Field_As_ObjectId_is_Correctly_Mapped_And_Generate_A_CreationDate() {
+    void id_Field_As_ObjectId_is_Correctly_Mapped_And_Generate_A_CreationDate() {
         Document document = new Document();
         document.put("_id", new ObjectId());
 
@@ -31,7 +31,7 @@ public class FlattenMongoDocumentTest {
     }
 
     @Test
-    public void id_Field_As_String_is_Correctly_Mapped_And_Generate_A_CreationDate() {
+    void id_Field_As_String_is_Correctly_Mapped_And_Generate_A_CreationDate() {
         Document document = new Document();
         document.put("_id", new ObjectId().toString());
 
@@ -49,7 +49,7 @@ public class FlattenMongoDocumentTest {
     }
 
     @Test
-    public void id_Field_not_object_id_is_Correctly_Mapped_And_Generate_no_errors() {
+    void id_Field_not_object_id_is_Correctly_Mapped_And_Generate_no_errors() {
         Document document = new Document();
         document.put("_id", "anything");
 
@@ -61,7 +61,7 @@ public class FlattenMongoDocumentTest {
     }
 
     @Test
-    public void date_Field_correctly_Mapped() {
+    void date_Field_correctly_Mapped() {
         Document document = new Document();
         document.put("_id", "anything");
         document.put("date", new Date());
@@ -86,7 +86,7 @@ public class FlattenMongoDocumentTest {
     }
 
     @Test
-    public void numbers_are_Correctly_Mapped() {
+    void numbers_are_Correctly_Mapped() {
         Document document = new Document();
         document.put("long", 500L);
         document.put("bigdecimal", BigDecimal.TEN);

@@ -4,20 +4,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
-import com.malt.mongopostgresqlstreamer.model.FieldMapping;
-import com.malt.mongopostgresqlstreamer.model.Mappings;
-import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import com.malt.mongopostgresqlstreamer.model.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,7 +27,7 @@ public class MappingsManager {
         mappingConfigs = read(mappingFile);
     }
 
-    private Mappings read(String mappingFile) throws FileNotFoundException {
+    Mappings read(String mappingFile) throws FileNotFoundException {
         Mappings mappingConfigs = new Mappings();
         List<DatabaseMapping> dbs = new ArrayList<>();
 
@@ -58,31 +52,45 @@ public class MappingsManager {
         db.setName(dbName);
 
         JsonObject database = mappings.getAsJsonObject(dbName);
-        for (String collectionName : database.keySet()) {
-            TableMapping tableMapping = readTableMapping(database, collectionName);
+        for (String mappingName : database.keySet()) {
+            TableMapping tableMapping = readTableMapping(database, mappingName);
             tableMappings.add(tableMapping);
         }
         return db;
     }
 
-    private TableMapping readTableMapping(JsonObject database, String collectionName) {
+    private TableMapping readTableMapping(JsonObject database, String mappingName) {
         List<FieldMapping> fieldMappings = new ArrayList<>();
         List<String> indices = new ArrayList<>();
+        List<FilterMapping> filters = new ArrayList<>();
         TableMapping tableMapping = new TableMapping();
         tableMapping.setIndices(indices);
-        tableMapping.setSourceCollection(collectionName);
-        tableMapping.setDestinationName(collectionName);
+        tableMapping.setMappingName(mappingName);
+        tableMapping.setFilters(filters);
+        // Default values
+        tableMapping.setSourceCollection(mappingName);
+        tableMapping.setDestinationName(mappingName);
 
         tableMapping.setFieldMappings(fieldMappings);
-        JsonObject collection = database.getAsJsonObject(collectionName);
+        JsonObject collection = database.getAsJsonObject(mappingName);
+        if (collection.get("_source") != null) {
+            tableMapping.setSourceCollection(collection.get("_source").getAsString());
+        }
+        if (collection.get("_destination") != null) {
+            tableMapping.setDestinationName(collection.get("_destination").getAsString());
+        }
         tableMapping.setPrimaryKey(collection.get("pk").getAsString());
 
         addIndices(indices, collection);
-        addCreationDateGeneratedFieldDefinition(collectionName, fieldMappings, indices);
+        addCreationDateGeneratedFieldDefinition(tableMapping.getDestinationName(), fieldMappings, indices);
 
         for (String fieldName : collection.keySet()) {
-            if (!fieldName.equals("pk") && !fieldName.equals("indices")) {
-                FieldMapping fieldMapping = readFieldMapping(collectionName, indices, collection, fieldName);
+            if (!fieldName.equals("pk") &&
+                    !fieldName.equals("indices") &&
+                    !fieldName.equals("_source") &&
+                    !fieldName.equals("_destination") &&
+                    !fieldName.equals("_filters")) {
+                FieldMapping fieldMapping = readFieldMapping(mappingName, indices, collection, fieldName);
                 fieldMappings.add(fieldMapping);
             }
         }
@@ -93,6 +101,14 @@ public class MappingsManager {
                     )
             );
         }
+
+        JsonArray filtersMapping = collection.getAsJsonArray("_filters");
+        Optional.ofNullable(filtersMapping).ifPresent(f -> {
+            for (JsonElement element: filtersMapping) {
+                JsonObject filter = element.getAsJsonObject();
+                filters.add(new FilterMapping(filter.get("field").getAsString(), filter.get("value").getAsString()));
+            }
+        });
         return tableMapping;
     }
 
@@ -175,7 +191,7 @@ public class MappingsManager {
         List<String> namespaces = new ArrayList<>();
         for (DatabaseMapping db : mappingConfigs.getDatabaseMappings()) {
             for (TableMapping tableMapping : db.getTableMappings()) {
-                String namespace = db.getName() + "." + tableMapping.getDestinationName();
+                String namespace = db.getName() + "." + tableMapping.getSourceCollection();
                 namespaces.add(namespace);
             }
         }

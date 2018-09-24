@@ -2,6 +2,7 @@ package com.malt.mongopostgresqlstreamer;
 
 import com.malt.mongopostgresqlstreamer.connectors.Connector;
 import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
+import com.malt.mongopostgresqlstreamer.model.FilterMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
 import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import com.mongodb.MongoClient;
@@ -9,7 +10,6 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,8 +50,9 @@ public class InitialImporter {
                             .anyMatch(collectionIsMapped(tableMapping));
                     if (needToBeImported) {
                         String collectionName = tableMapping.getSourceCollection();
+                        String mappingName = tableMapping.getMappingName();
                         connector.bulkInsert(
-                                collectionName,
+                                mappingName,
                                 mongoDatabase.getCollection(collectionName).count(),
                                 toStream(
                                         mongoDatabase.getCollection(collectionName)
@@ -59,7 +60,8 @@ public class InitialImporter {
                                                 .noCursorTimeout(true)
                                                 .iterator()
                                 )
-                                        .map(FlattenMongoDocument::fromDocument),
+                                        .map(FlattenMongoDocument::fromDocument)
+                                        .filter(tableMapping.getFilters().stream().map(FilterMapping::apply).reduce(Predicate::or).orElse(t -> true)),
                                 databaseMapping
                         );
                     }
@@ -79,7 +81,7 @@ public class InitialImporter {
                             .stream()
                             .anyMatch(collectionIsMapped(tableMapping));
                     if (needToBeImported) {
-                        connector.createTable(tableMapping.getSourceCollection(), databaseMapping);
+                        connector.createTable(tableMapping.getMappingName(), databaseMapping);
                     }
                 }
             }
@@ -98,7 +100,7 @@ public class InitialImporter {
                             .stream()
                             .anyMatch(collectionIsMapped(tableMapping));
                     if (needToBeImported) {
-                        connector.addConstraints(tableMapping.getSourceCollection(), databaseMapping);
+                        connector.addConstraints(tableMapping.getMappingName(), databaseMapping);
                     }
                 }
             }

@@ -1,7 +1,9 @@
 package com.malt.mongopostgresqlstreamer;
 
 import com.malt.mongopostgresqlstreamer.connectors.Connector;
+import com.malt.mongopostgresqlstreamer.model.FilterMapping;
 import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
+import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import com.mongodb.CursorType;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoQueryException;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import static com.mongodb.client.model.Filters.*;
 
@@ -90,39 +93,50 @@ public class OplogStreamer {
 
         mappingsManager.mappingConfigs.databaseMappingFor(database).ifPresent(mappings -> {
             MongoDatabase mongoDb = mongoClient.getDatabase(database);
-            if (mappings.get(collection).isPresent()) {
+            List<TableMapping> tableMappings = mappings.getBySourceName(collection);
+            tableMappings.forEach(tableMapping -> {
                 log.debug("Operation {} detected on {}", operation, namespace);
+                Predicate<FlattenMongoDocument> mappingFilters = tableMapping.getFilters().stream()
+                        .map(FilterMapping::apply)
+                        .reduce(Predicate::or)
+                        .orElse(x -> true);
+
                 switch (operation) {
                     case "i":
-                        Document newDocument = (Document) document.get("o");
-                        connectors.forEach(connector ->
-                                connector.insert(
-                                        collection,
-                                        FlattenMongoDocument.fromDocument(newDocument),
-                                        mappings
-                                )
-                        );
-                        break;
-                    case "u":
-                        Map documentIdToUpdate = (Map) document.get("o2");
-                        Document updatedDocument = mongoDb.getCollection(collection)
-                                .find(eq("_id", documentIdToUpdate.get("_id")))
-                                .first();
-                        if (updatedDocument != null) {
+                        FlattenMongoDocument newDocument = FlattenMongoDocument.fromDocument((Document) document.get("o"));
+                        if (mappingFilters.test(newDocument)) {
                             connectors.forEach(connector ->
-                                    connector.update(
-                                            collection,
-                                            FlattenMongoDocument.fromDocument(updatedDocument),
+                                    connector.insert(
+                                            tableMapping.getMappingName(),
+                                            newDocument,
                                             mappings
                                     )
                             );
+                        }
+                        break;
+                    case "u":
+                        Map documentIdToUpdate = (Map) document.get("o2");
+                        Document updatedDocument = mongoDb.getCollection(tableMapping.getSourceCollection())
+                                .find(eq("_id", documentIdToUpdate.get("_id")))
+                                .first();
+                        if (updatedDocument != null) {
+                            FlattenMongoDocument flattenMongoDocument = FlattenMongoDocument.fromDocument(updatedDocument);
+                            if (mappingFilters.test(flattenMongoDocument)) {
+                                connectors.forEach(connector ->
+                                        connector.update(
+                                                tableMapping.getMappingName(),
+                                                flattenMongoDocument,
+                                                mappings
+                                        )
+                                );
+                            }
                         }
                         break;
                     case "d":
                         Document documentIdToRemove = (Document) document.get("o");
                         connectors.forEach(connector ->
                                 connector.remove(
-                                        collection,
+                                        tableMapping.getMappingName(),
                                         FlattenMongoDocument.fromDocument(documentIdToRemove),
                                         mappings
                                 )
@@ -131,7 +145,8 @@ public class OplogStreamer {
                     default:
                         break;
                 }
-            }
+            });
+
         });
 
         return timestamp;
