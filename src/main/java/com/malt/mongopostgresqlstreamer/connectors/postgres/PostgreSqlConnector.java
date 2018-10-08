@@ -326,18 +326,21 @@ public class PostgreSqlConnector implements Connector {
                 .collect(toList());
     }
 
-    private List<Field> keepOnlyMappedFields(FlattenMongoDocument document, TableMapping mappings) {
-        return document.getValues().entrySet().stream()
-                .filter(e -> mappings.isMapped(e.getKey()))
-                .map(e ->
-                        new Field(
-                        mappings.getBySourceName(e.getKey()).get().getDestinationName(),
-                        transform(e.getValue(), mappings.getBySourceName(e.getKey()).get().getTrueType())
-                ))
+    private static List<Field> keepOnlyMappedFields(FlattenMongoDocument document, TableMapping mappings) {
+        Map<String, Object> values = document.getValues();
+        return mappings.getFieldMappings().stream()
+                .map(fieldMapping -> toField(fieldMapping, values))
                 .collect(toList());
     }
 
-    private Object transform(Object value, String type) {
+    private static Field toField(FieldMapping fieldMapping, Map<String, Object> document) {
+        return new Field(
+                fieldMapping.getDestinationName(),
+                transform(document.get(fieldMapping.getSourceName()), fieldMapping.getTrueType())
+        );
+    }
+
+    private static Object transform(Object value, String type) {
         if (type.equalsIgnoreCase("_PRESENCE")) {
             return value != null;
         }
