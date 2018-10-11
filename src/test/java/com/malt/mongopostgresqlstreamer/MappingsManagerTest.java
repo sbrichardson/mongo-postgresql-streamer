@@ -1,20 +1,34 @@
 package com.malt.mongopostgresqlstreamer;
 
 import com.malt.mongopostgresqlstreamer.model.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.DefaultResourceLoader;
 
-import java.io.FileNotFoundException;
 import java.util.List;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 class MappingsManagerTest {
+    private static final String FILE_NAME = "mapping.json";
+
+    private String filePath;
+    private MappingsManager mappingsManager;
+
+    @BeforeEach
+    void setUp() {
+        ResourceResolverService resourceResolverService = new ResourceResolverService(
+                new DefaultResourceLoader(Thread.currentThread().getContextClassLoader())
+        );
+
+        filePath = Objects.requireNonNull(this.getClass().getClassLoader().getResource(FILE_NAME)).getPath();
+        mappingsManager = new MappingsManager(resourceResolverService, filePath);
+    }
 
     @Test
-    void should_parse_valid_mapping_file() throws FileNotFoundException {
-        MappingsManager mappingsManager = new MappingsManager();
-        String filePath = this.getClass().getClassLoader().getResource("mapping.json").getPath();
+    void should_parse_valid_mapping_file() {
         Mappings result = mappingsManager.read(filePath);
 
         assertThat(result).isNotNull();
@@ -73,7 +87,6 @@ class MappingsManagerTest {
 
     @Test
     void it_should_read_mapping_with_table_association() throws Exception {
-        MappingsManager mappingsManager = new MappingsManager();
         String filePath = this.getClass().getClassLoader().getResource("mapping-with-related-table.json").getPath();
 
         Mappings result = mappingsManager.read(filePath);
