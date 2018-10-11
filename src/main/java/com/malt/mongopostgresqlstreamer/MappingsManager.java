@@ -9,35 +9,46 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import javax.inject.Inject;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class MappingsManager {
 
-    @Value("${mappings:mappings.json}")
-    private String mappingFile;
+    private final ResourceResolverService resourceResolverService;
+    private final String mappingFile;
 
     Mappings mappingConfigs;
 
+    @Inject
+    public MappingsManager(
+            ResourceResolverService resourceResolverService,
+            @Value("${mappings:mappings.json}") String mappingFile) {
+
+        this.mappingFile = mappingFile;
+        this.resourceResolverService = resourceResolverService;
+    }
+
     @PostConstruct
-    public void read() throws FileNotFoundException {
+    public void read() {
         mappingConfigs = read(mappingFile);
     }
 
-    Mappings read(String mappingFile) throws FileNotFoundException {
+    Mappings read(String mappingFile) {
         Mappings mappingConfigs = new Mappings();
         List<DatabaseMapping> dbs = new ArrayList<>();
 
-        JsonObject mappings = new JsonParser().parse(new FileReader(mappingFile)).getAsJsonObject();
+        InputStream is = resourceResolverService.find(mappingFile);
+        JsonObject mappings = new JsonParser().parse(new InputStreamReader(is)).getAsJsonObject();
 
         Set<String> databases = mappings.keySet();
         for (String dbName : databases) {
             DatabaseMapping db = readDatabaseMapping(mappings, dbName);
             dbs.add(db);
         }
+
         mappingConfigs.setDatabaseMappings(dbs);
 
         checkIntegrity(mappingConfigs);

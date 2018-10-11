@@ -48,8 +48,6 @@ class StreamerIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-
-
     @BeforeAll
     static void setUp() throws IOException, InterruptedException {
         postgreSQLContainer.start();
@@ -79,5 +77,4 @@ class StreamerIntegrationTest {
     void test() {
         initialImporter.start();
     }
-
 }

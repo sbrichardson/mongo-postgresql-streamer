@@ -1,12 +1,10 @@
 package com.malt.mongopostgresqlstreamer;
 
-import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
-import com.malt.mongopostgresqlstreamer.model.Mappings;
-import com.malt.mongopostgresqlstreamer.model.TableMapping;
+import com.malt.mongopostgresqlstreamer.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.DefaultResourceLoader;
 
-import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,13 +19,16 @@ class MappingsManagerTest {
 
     @BeforeEach
     void setUp() {
-        mappingsManager = new MappingsManager();
+        ResourceResolverService resourceResolverService = new ResourceResolverService(
+                new DefaultResourceLoader(Thread.currentThread().getContextClassLoader())
+        );
+
         filePath = Objects.requireNonNull(this.getClass().getClassLoader().getResource(FILE_NAME)).getPath();
+        mappingsManager = new MappingsManager(resourceResolverService, filePath);
     }
 
-
     @Test
-    void should_parse_valid_mapping_file() throws FileNotFoundException {
+    void should_parse_valid_mapping_file() {
         Mappings result = mappingsManager.read(filePath);
 
         assertThat(result).isNotNull();
