@@ -1,33 +1,20 @@
 package com.malt.mongopostgresqlstreamer;
 
-import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
-import com.malt.mongopostgresqlstreamer.model.Mappings;
-import com.malt.mongopostgresqlstreamer.model.TableMapping;
-import org.junit.jupiter.api.BeforeEach;
+import com.malt.mongopostgresqlstreamer.model.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileNotFoundException;
 import java.util.List;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
 class MappingsManagerTest {
-    private static final String FILE_NAME = "mapping.json";
-
-    private String filePath;
-    private MappingsManager mappingsManager;
-
-    @BeforeEach
-    void setUp() {
-        mappingsManager = new MappingsManager();
-        filePath = Objects.requireNonNull(this.getClass().getClassLoader().getResource(FILE_NAME)).getPath();
-    }
-
 
     @Test
     void should_parse_valid_mapping_file() throws FileNotFoundException {
+        MappingsManager mappingsManager = new MappingsManager();
+        String filePath = this.getClass().getClassLoader().getResource("mapping.json").getPath();
         Mappings result = mappingsManager.read(filePath);
 
         assertThat(result).isNotNull();
@@ -82,5 +69,78 @@ class MappingsManagerTest {
                 );
         assertThat(table3.getFilters()).isEmpty();
 
+    }
+
+    @Test
+    void it_should_read_mapping_with_table_association() throws Exception {
+        MappingsManager mappingsManager = new MappingsManager();
+        String filePath = this.getClass().getClassLoader().getResource("mapping-with-related-table.json").getPath();
+
+        Mappings result = mappingsManager.read(filePath);
+        assertThat(result).isNotNull();
+
+        List<DatabaseMapping> dbMappings = result.getDatabaseMappings();
+        assertThat(dbMappings).hasSize(1);
+
+        DatabaseMapping dbMapping = dbMappings.get(0);
+        assertThat(dbMapping.getName()).isEqualTo("my_mongo_database");
+        assertThat(dbMapping.getTableMappings()).hasSize(2);
+
+        List<TableMapping> tableMappings = dbMapping.getTableMappings();
+
+        TableMapping table1 = tableMappings.get(0);
+        assertThat(table1.getSourceCollection()).isEqualTo("teams");
+        assertThat(table1.getDestinationName()).isEqualTo("teams");
+        assertThat(table1.getMappingName()).isEqualTo("teams");
+        assertThat(table1.getPrimaryKey()).isEqualTo("id");
+        assertThat(table1.getFilters()).isEmpty();
+        assertThat(table1.getIndices()).hasSize(1).contains(
+                "INDEX idx_teams__creationdate ON teams (_creationdate)"
+        );
+
+        assertThat(table1.getFieldMappings()).hasSize(4)
+                .extracting(
+                        FieldMapping::getSourceName,
+                        FieldMapping::getDestinationName,
+                        FieldMapping::getType,
+                        FieldMapping::getForeignKey,
+                        FieldMapping::isIndexed,
+                        FieldMapping::isAnArray,
+                        FieldMapping::getTrueType,
+                        FieldMapping::getScalarFieldDestinationName)
+                .contains(
+                        tuple("_creationdate", "_creationdate", "TIMESTAMP", null, true, false, "TIMESTAMP", null),
+                        tuple("_id", "id", "TEXT", null, false, false, "TEXT", null),
+                        tuple("name", "name", "TEXT", null, false, false, "TEXT", null),
+                        tuple("members", "team_members", "_ARRAY", "team_id", false, true, "_ARRAY", null)
+                );
+
+        TableMapping table2 = tableMappings.get(1);
+        assertThat(table2.getSourceCollection()).isEqualTo("team_members");
+        assertThat(table2.getDestinationName()).isEqualTo("team_members");
+        assertThat(table2.getMappingName()).isEqualTo("team_members");
+        assertThat(table2.getPrimaryKey()).isEqualTo("id");
+        assertThat(table2.getFilters()).isEmpty();
+        assertThat(table2.getIndices()).hasSize(2).contains(
+                "INDEX idx_team_members__creationdate ON team_members (_creationdate)",
+                "INDEX idx_team_members_team_id ON team_members (team_id)"
+        );
+
+        assertThat(table2.getFieldMappings()).hasSize(4)
+                .extracting(
+                        FieldMapping::getSourceName,
+                        FieldMapping::getDestinationName,
+                        FieldMapping::getType,
+                        FieldMapping::getForeignKey,
+                        FieldMapping::isIndexed,
+                        FieldMapping::isAnArray,
+                        FieldMapping::getTrueType,
+                        FieldMapping::getScalarFieldDestinationName)
+                .contains(
+                        tuple("_creationdate", "_creationdate", "TIMESTAMP", null, true, false, "TIMESTAMP", null),
+                        tuple("team_id", "team_id", "TEXT", null, true, false, "TEXT", null),
+                        tuple("name", "name", "TEXT", null, false, false, "TEXT", null),
+                        tuple("", "id", "VARCHAR", null, true, false, "VARCHAR", null)
+                );
     }
 }

@@ -5,9 +5,11 @@ import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.util.*;
 
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 class FlattenMongoDocumentTest {
 
@@ -101,5 +103,37 @@ class FlattenMongoDocumentTest {
         assertThat(flattenMongoDocument.get("bigdecimal").get()).isEqualTo(BigDecimal.TEN);
         assertThat(flattenMongoDocument.get("long").get()).isEqualTo(500L);
         assertThat(flattenMongoDocument.get("integer").get()).isEqualTo(200);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void it_should_not_flatten_arrays() {
+        Document teamDocument = new Document();
+        teamDocument.put("id", new ObjectId().toHexString());
+        teamDocument.put("name", "The Avengers");
+        teamDocument.put("members", asList(
+                givenTeamMemberDocument("Hulk"),
+                givenTeamMemberDocument("Iron Man")
+        ));
+
+        FlattenMongoDocument flattenedDocument = FlattenMongoDocument.fromDocument(teamDocument);
+
+        assertThat(flattenedDocument).isNotNull();
+        assertThat(flattenedDocument.getValues()).hasSize(3).contains(
+                entry("id", teamDocument.get("id")),
+                entry("name", teamDocument.get("name"))
+        );
+
+        List<Map<String, Object>> members = (List<Map<String, Object>>) flattenedDocument.getValues().get("members");
+        assertThat(members).hasSize(2);
+        assertThat(members.get(0).get("name")).isEqualTo("Hulk");
+        assertThat(members.get(1).get("name")).isEqualTo("Iron Man");
+    }
+
+    private static Document givenTeamMemberDocument(String name) {
+        Document document = new Document();
+        document.put("id", new ObjectId().toHexString());
+        document.put("name", name);
+        return document;
     }
 }

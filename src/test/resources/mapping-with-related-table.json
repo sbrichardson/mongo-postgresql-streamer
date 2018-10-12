@@ -1,0 +1,33 @@
+{
+  "my_mongo_database": {
+    "teams": {
+      "pk": "id",
+      "_id": {
+        "dest": "id",
+        "type": "TEXT"
+      },
+      "name": {
+        "dest": "name",
+        "type": "TEXT"
+      },
+      "members": {
+        "dest": "team_members",
+        "fk": "team_id",
+        "type": "_ARRAY"
+      }
+    },
+
+    "team_members": {
+      "pk": "id",
+      "team_id": {
+        "dest": "team_id",
+        "type": "TEXT",
+        "index": true
+      },
+      "name": {
+        "dest": "name",
+        "type": "TEXT"
+      }
+    }
+  }
+}
