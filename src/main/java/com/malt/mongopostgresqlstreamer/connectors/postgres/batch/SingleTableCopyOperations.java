@@ -50,8 +50,9 @@ class SingleTableCopyOperations {
             getMissingFields(fields)
                     .forEach(f -> fields.add(new Field(f, null)));
         } else if (fields.size() > fieldNames.size()) {
-            throw new RuntimeException("Expecting " + fieldNames.size() + " values but received " + fields.size());
+            throw new InvalidTableFieldException(table, fieldNames, fields);
         }
+
         this.copyString.append(serialize(fields.stream().sorted().map(Field::getValue).collect(toList())));
         this.valueCounter.incrementAndGet();
 
