@@ -65,6 +65,7 @@ Alternatively, you can use a configuration file (in yml or properties format) li
 |spring.datasource.url | jdbc:postgresql://localhost:5432 | the jdbc url to connect to postgresql |
 |spring.datasource.username |  | username to login on pgsql |
 |spring.datasource.password | | I think you already know what is this field |
+|spring.datasource.platform | | this value should always be postgresql (mandatory) |
 |mongo.connector.identifier | streamer | if you have different connectors, use different identifiers so that they don't have conflicts in the mongooplog collection  |
 |mongo.connector.forcereimport | false | Use this argument if you want to force a new reimport of your schema and data  |
 |mappings | mappings.json | The path to your mapping file |
