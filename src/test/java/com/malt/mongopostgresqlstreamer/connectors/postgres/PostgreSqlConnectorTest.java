@@ -53,45 +53,27 @@ class PostgreSqlConnectorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void it_should_bulk_insert_table_with_related_table_entry() {
         DatabaseMapping dbMapping = givenDatabaseMapping("teams", givenTableTeamMapping(), givenTableTeamMembersMapping());
         FlattenMongoDocument flattenedDocument = FlattenMongoDocument.fromDocument(givenTeamDocument());
 
         connector.bulkInsert("teams", 1, Stream.of(flattenedDocument), dbMapping);
 
-        ArgumentCaptor<List<FieldMapping>> argFieldMappings = ArgumentCaptor.forClass(List.class);
-        ArgumentCaptor<List<Field>> argFields = ArgumentCaptor.forClass(List.class);
-        verify(sqlExecutor).batchInsert(eq("teams"), argFieldMappings.capture(), argFields.capture());
-
-        List<FieldMapping> fieldMappings = argFieldMappings.getValue();
-        assertThat(fieldMappings).hasSize(4)
-                .extracting(
-                        FieldMapping::getSourceName,
-                        FieldMapping::getDestinationName,
-                        FieldMapping::getType
-                )
-                .contains(
-                        tuple("_creationdate", "_creationdate", "TIMESTAMP"),
-                        tuple("_id", "id", "TEXT"),
-                        tuple("name", "name", "TEXT"),
-                        tuple("members", "team_members", "_ARRAY")
-                );
-
-        List<Field> fields = argFields.getValue();
-        assertThat(fields).hasSize(3)
-                .extracting(Field::getName)
-                .contains("_creationdate", "id", "name");
+        verifyBulkInsert();
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void it_should_bulk_insert_table_with_related_table_entry_with_iterable_entry_set_to_null() {
         DatabaseMapping dbMapping = givenDatabaseMapping("teams", givenTableTeamMapping(), givenTableTeamMembersMapping());
         FlattenMongoDocument flattenedDocument = FlattenMongoDocument.fromDocument(givenTeamDocumentWithoutMembers());
 
         connector.bulkInsert("teams", 1, Stream.of(flattenedDocument), dbMapping);
 
+        verifyBulkInsert();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void verifyBulkInsert() {
         ArgumentCaptor<List<FieldMapping>> argFieldMappings = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<List<Field>> argFields = ArgumentCaptor.forClass(List.class);
         verify(sqlExecutor).batchInsert(eq("teams"), argFieldMappings.capture(), argFields.capture());
