@@ -71,14 +71,13 @@ public class PostgreSqlConnector implements Connector {
     public void upsert(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
         TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
         List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
-        List<Field> currentTableFields = getCurrentTableFields(mappedFields);
 
         removeAllRelatedRecords(mappings, tableMapping, document);
 
         sqlExecutor.upsert(
                 tableMapping.getDestinationName(),
                 tableMapping.getPrimaryKey(),
-                withPrimaryKeyIfNecessary(currentTableFields, tableMapping.getPrimaryKey())
+                withPrimaryKeyIfNecessary(mappedFields, tableMapping.getPrimaryKey())
         );
 
         importRelatedCollections(mappings, tableMapping, document);
@@ -144,12 +143,11 @@ public class PostgreSqlConnector implements Connector {
         documents
                 .forEach(document -> {
                     List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
-                    List<Field> currentTableFields = getCurrentTableFields(mappedFields);
 
                     sqlExecutor.batchInsert(
                             tableMapping.getDestinationName(),
                             tableMapping.getFieldMappings(),
-                            withPrimaryKeyIfNecessary(currentTableFields, tableMapping.getPrimaryKey())
+                            withPrimaryKeyIfNecessary(mappedFields, tableMapping.getPrimaryKey())
                     );
 
                     counter.addAndGet(
@@ -320,15 +318,10 @@ public class PostgreSqlConnector implements Connector {
                 .collect(toList());
     }
 
-    private List<Field> getCurrentTableFields(List<Field> mappedFields) {
-        return mappedFields.stream()
-                .filter(field -> !field.isList())
-                .collect(toList());
-    }
-
     private static List<Field> keepOnlyMappedFields(FlattenMongoDocument document, TableMapping mappings) {
         Map<String, Object> values = document.getValues();
         return mappings.getFieldMappings().stream()
+                .filter(fieldMapping -> !fieldMapping.isAnArray())
                 .map(fieldMapping -> toField(fieldMapping, values))
                 .collect(toList());
     }
