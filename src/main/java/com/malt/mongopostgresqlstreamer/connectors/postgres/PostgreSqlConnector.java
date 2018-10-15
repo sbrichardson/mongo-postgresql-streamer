@@ -140,12 +140,13 @@ public class PostgreSqlConnector implements Connector {
             log.trace("Starting bulk insert of collection {} ({} documents)...", tableMapping.getSourceCollection(), totalNumberOfDocuments);
         }
 
+        String destinationName = tableMapping.getDestinationName();
         documents
                 .forEach(document -> {
                     List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
 
                     sqlExecutor.batchInsert(
-                            tableMapping.getDestinationName(),
+                            destinationName,
                             tableMapping.getFieldMappings(),
                             withPrimaryKeyIfNecessary(mappedFields, tableMapping.getPrimaryKey())
                     );
@@ -158,11 +159,11 @@ public class PostgreSqlConnector implements Connector {
                     if (tmpCounter % 1000 == 0) {
                         long endTime = System.currentTimeMillis();
                         double processTimeInSeconds = (endTime - startTime)/1000D;
-                        log.info("{} documents imported - speed : {}/s", tmpCounter, tmpCounter/processTimeInSeconds);
+                        log.info("{} documents imported to {} - speed : {}/s", tmpCounter, destinationName, tmpCounter/processTimeInSeconds);
                     }
                 });
 
-        sqlExecutor.finalizeBatchInsert(tableMapping.getDestinationName());
+        sqlExecutor.finalizeBatchInsert(destinationName);
 
         if (!relatedCollection) {
             log.info("{} and its related collections was successfully imported ({} documents) !", tableMapping.getSourceCollection(), counter.get());
@@ -245,13 +246,19 @@ public class PostgreSqlConnector implements Connector {
     }
 
     private List<Field> withPrimaryKeyIfNecessary(List<Field> currentTableFields, String primaryKey) {
-        boolean hasPrimaryKeyDefined = currentTableFields.stream()
-                .anyMatch(field -> field.getName().equals(primaryKey));
-        if (hasPrimaryKeyDefined) {
-            return currentTableFields;
+        Field pkField = currentTableFields.stream()
+                .filter(field -> field.getName().equals(primaryKey))
+                .findFirst()
+                .orElse(null);
+
+        if (pkField == null) {
+            // Force the ID field to the field mappings in this case.
+            currentTableFields.add(new Field(primaryKey, new ObjectId().toString()));
+        } else if (pkField.getValue() == null) {
+            // Generate an ID if it is missing.
+            pkField.setValue(new ObjectId().toString());
         }
 
-        currentTableFields.add(new Field(primaryKey, new ObjectId().toString()));
         return currentTableFields;
     }
 

@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class PostgreSqlConnectorTest {
@@ -70,6 +71,49 @@ class PostgreSqlConnectorTest {
         connector.bulkInsert("teams", 1, Stream.of(flattenedDocument), dbMapping);
 
         verifyBulkInsert();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void it_should_bulk_insert_table_and_related_collection() {
+        DatabaseMapping dbMapping = givenDatabaseMapping("teams", givenTableTeamMapping(), givenTableTeamMembersMapping());
+        FlattenMongoDocument flattenedDocument = FlattenMongoDocument.fromDocument(givenTeamDocument());
+
+        connector.bulkInsert("teams", 1, Stream.of(flattenedDocument), dbMapping);
+
+        ArgumentCaptor<List<FieldMapping>> argFieldMappings = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<Field>> argFields = ArgumentCaptor.forClass(List.class);
+        verify(sqlExecutor, times(2)).batchInsert(eq("team_members"), argFieldMappings.capture(), argFields.capture());
+
+        List<List<FieldMapping>> fieldMappings = argFieldMappings.getAllValues();
+        List<List<Field>> fields = argFields.getAllValues();
+
+        verifyBulkInsertRelatedCollection(fieldMappings.get(0), fields.get(0));
+        verifyBulkInsertRelatedCollection(fieldMappings.get(1), fields.get(1));
+    }
+
+    private static void verifyBulkInsertRelatedCollection(List<FieldMapping> fieldMappings, List<Field> fields) {
+        assertThat(fieldMappings).hasSize(4)
+                .extracting(
+                        FieldMapping::getSourceName,
+                        FieldMapping::getDestinationName,
+                        FieldMapping::getType
+                )
+                .contains(
+                        tuple("_creationdate", "_creationdate", "TIMESTAMP"),
+                        tuple("team_id", "team_id", "TEXT"),
+                        tuple("name", "name", "TEXT"),
+                        tuple("", "id", "VARCHAR")
+                );
+
+        assertThat(fields).hasSize(4)
+                .extracting(Field::getName)
+                .contains("_creationdate", "team_id", "name", "id");
+
+        Field pkField = fields.stream().filter(field -> field.getName().equals("id")).findFirst().get();
+        assertThat(pkField.getValue())
+                .as("The primary key field must never be null")
+                .isNotNull();
     }
 
     @SuppressWarnings("unchecked")
@@ -213,7 +257,7 @@ class PostgreSqlConnectorTest {
 
     private static Document givenTeamMemberDocument(String name) {
         Document document = new Document();
-        document.put("id", new ObjectId().toHexString());
+        document.put("id", null);
         document.put("name", name);
         return document;
     }
