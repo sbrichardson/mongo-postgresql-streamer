@@ -1,1 +1,2 @@
-mappings: classpath:mapping.json
+mappings: classpath:mapping-it.json
+mongo.connector.forcereimport: true

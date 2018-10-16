@@ -1,0 +1,52 @@
+{
+  "my_db":{
+    "superheros":{
+      "pk":"id",
+      "_id":{
+        "dest":"id",
+        "type":"TEXT"
+      },
+      "superhero":{
+        "dest": "superhero",
+        "type": "TEXT"
+      },
+      "publisher":{
+        "dest": "publisher",
+        "type": "TEXT"
+      },
+      "characters":{
+        "dest": "superhero_characters",
+        "type": "_ARRAY_OF_SCALARS",
+        "fk": "superhero_id",
+        "valueField": "character"
+      }
+    },
+    "superhero_characters": {
+      "pk": "id",
+      "superhero_id": {
+        "dest": "superhero_id",
+        "type": "TEXT"
+      },
+      "character": {
+        "type": "TEXT"
+      }
+    },
+    "superheros_marvel": {
+      "_source": "superheros",
+      "_destination": "superheros_marvel",
+      "_filters": [{
+        "field": "publisher",
+        "value": "Marvel Comics"
+      }],
+      "pk":"id",
+      "_id":{
+        "dest":"id",
+        "type":"TEXT"
+      },
+      "superhero":{
+        "dest": "superhero",
+        "type": "TEXT"
+      }
+    }
+  }
+}

@@ -174,7 +174,7 @@ public class PostgreSqlConnector implements Connector {
         return counter.get();
     }
 
-    public void removeAllRelatedRecords(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
+    private void removeAllRelatedRecords(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
         List<String> relatedCollections = getRelatedCollections(document);
         for (String relatedCollection : relatedCollections) {
             Optional<FieldMapping> optFieldMapping = tableMapping.getBySourceName(relatedCollection);

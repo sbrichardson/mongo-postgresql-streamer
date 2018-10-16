@@ -1,0 +1,102 @@
+[
+  {
+    "superhero": "Batman",
+    "publisher": "DC Comics",
+    "characters": ["Bruce Wayne"]
+  },
+  {
+    "superhero": "Superman",
+    "publisher": "DC Comics",
+    "characters": ["Kal-El"]
+  },
+  {
+    "superhero": "Flash",
+    "publisher": "DC Comics",
+    "characters": ["Jay Garrick", "Barry Allen", "Wally West", "Bart Allen"]
+  },
+  {
+    "superhero": "Green Lantern",
+    "publisher": "DC Comics",
+    "characters": ["Alan Scott", "Hal Jordan", "Guy Gardner", "John Stewart", "Kyle Raynor", "Jade", "Sinestro", "Simon Baz"]
+  },
+  {
+    "superhero": "Green Arrow",
+    "publisher": "DC Comics",
+    "characters": ["Oliver Queen"]
+  },
+  {
+    "superhero": "Wonder Woman",
+    "publisher": "DC Comics",
+    "characters": ["Princess Diana"]
+  },
+  {
+    "superhero": "Martian Manhunter",
+    "publisher": "DC Comics",
+    "characters": ["Martian Manhunter"]
+  },
+  {
+    "superhero": "Robin/Nightwing",
+    "publisher": "DC Comics",
+    "characters": ["Dick Grayson"]
+  },
+  {
+    "superhero": "Blue Beetle",
+    "publisher": "DC Comics",
+    "characters": ["Dan Garret", "Ted Kord", "Jaime Reyes"]
+  },
+  {
+    "superhero": "Black Canary",
+    "publisher": "DC Comics",
+    "characters": ["Dinah Drake", "Dinah Lance"]
+  },
+  {
+    "superhero": "Spider Man",
+    "publisher": "Marvel Comics",
+    "characters": ["Peter Parker"]
+  },
+  {
+    "superhero": "Captain America",
+    "publisher": "Marvel Comics",
+    "characters": ["Steve Rogers"]
+  },
+  {
+    "superhero": "Iron Man",
+    "publisher": "Marvel Comics",
+    "characters": ["Tony Stark"]
+  },
+  {
+    "superhero": "Thor",
+    "publisher": "Marvel Comics",
+    "characters": ["Thor Odinson"]
+  },
+  {
+    "superhero": "Hulk",
+    "publisher": "Marvel Comics",
+    "characters": ["Bruce Banner"]
+  },
+  {
+    "superhero": "Wolverine",
+    "publisher": "Marvel Comics",
+    "characters": ["James Howlett"]
+  },
+  {
+    "superhero": "Daredevil",
+    "publisher": "Marvel Comics",
+    "characters": ["Matthew Michael Murdock"]
+  },
+  {
+    "superhero": "Hawkeye",
+    "publisher": "Marvel Comics",
+    "characters": ["Clinton Francis Barton"]
+  },
+  {
+    "superhero": "Cyclops",
+    "publisher": "Marvel Comics",
+    "characters": ["Scott Summers"]
+  },
+  {
+    "superhero": "Silver Surfer",
+    "publisher": "Marvel Comics",
+    "characters": ["Norrin Radd"]
+  }
+]

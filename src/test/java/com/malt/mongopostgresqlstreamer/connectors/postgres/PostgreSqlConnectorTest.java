@@ -1,6 +1,9 @@
 package com.malt.mongopostgresqlstreamer.connectors.postgres;
 
-import com.malt.mongopostgresqlstreamer.model.*;
+import com.malt.mongopostgresqlstreamer.model.DatabaseMapping;
+import com.malt.mongopostgresqlstreamer.model.FieldMapping;
+import com.malt.mongopostgresqlstreamer.model.FlattenMongoDocument;
+import com.malt.mongopostgresqlstreamer.model.TableMapping;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
