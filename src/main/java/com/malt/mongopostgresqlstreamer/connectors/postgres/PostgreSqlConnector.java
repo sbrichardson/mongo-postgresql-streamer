@@ -50,8 +50,8 @@ public class PostgreSqlConnector implements Connector {
     @Override
     public void addConstraints(
             String mappingName,
-            DatabaseMapping mapping
-    ) {
+            DatabaseMapping mapping) {
+
         TableMapping tableMapping = getTableMappingOrFail(mappingName, mapping);
 
         sqlExecutor.setTableAsLogged(tableMapping.getDestinationName());
@@ -72,15 +72,16 @@ public class PostgreSqlConnector implements Connector {
         TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
         List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
 
+        // Ensure that the primary key is here when we want to insert the `document`.
+        // For related document, this primary key may be missing or is null, so we have to generate one.
+        String primaryKeyName = tableMapping.getPrimaryKey();
+        List<Field> sqlQueryFields = withPrimaryKeyIfNecessary(mappedFields, primaryKeyName);
+
         removeAllRelatedRecords(mappings, tableMapping, document);
 
-        sqlExecutor.upsert(
-                tableMapping.getDestinationName(),
-                tableMapping.getPrimaryKey(),
-                withPrimaryKeyIfNecessary(mappedFields, tableMapping.getPrimaryKey())
-        );
+        sqlExecutor.upsert(tableMapping.getDestinationName(), primaryKeyName, sqlQueryFields);
 
-        importRelatedCollections(mappings, tableMapping, document);
+        importDocumentRelations(document, mappings, tableMapping, primaryKeyName, sqlQueryFields);
     }
 
     @Override
@@ -105,11 +106,8 @@ public class PostgreSqlConnector implements Connector {
     @Override
     public void remove(String mappingName, FlattenMongoDocument document, DatabaseMapping mappings) {
         TableMapping tableMapping = getTableMappingOrFail(mappingName, mappings);
-
-        sqlExecutor.remove(
-                tableMapping.getDestinationName(),
-                tableMapping.getPrimaryKey(), getPrimaryKeyValue(document, tableMapping)
-        );
+        Object primaryKeyValue = getPrimaryKeyValue(document, tableMapping);
+        sqlExecutor.remove(tableMapping.getDestinationName(), tableMapping.getPrimaryKey(), primaryKeyValue);
     }
 
     @Override
@@ -117,8 +115,8 @@ public class PostgreSqlConnector implements Connector {
             String mappingName,
             long totalNumberOfDocuments,
             Stream<FlattenMongoDocument> documents,
-            DatabaseMapping mappings
-    ) {
+            DatabaseMapping mappings) {
+
         bulkInsert(mappingName, totalNumberOfDocuments, documents, mappings, false);
     }
 
@@ -127,8 +125,8 @@ public class PostgreSqlConnector implements Connector {
             long totalNumberOfDocuments,
             Stream<FlattenMongoDocument> documents,
             DatabaseMapping mappings,
-            boolean relatedCollection
-    ) {
+            boolean relatedCollection) {
+
         long startTime = System.currentTimeMillis();
 
         AtomicInteger counter = new AtomicInteger();
@@ -143,19 +141,9 @@ public class PostgreSqlConnector implements Connector {
         String destinationName = tableMapping.getDestinationName();
         documents
                 .forEach(document -> {
-                    List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
+                    int nbInsertions = importDocument(document, mappings, tableMapping);
 
-                    sqlExecutor.batchInsert(
-                            destinationName,
-                            tableMapping.getFieldMappings(),
-                            withPrimaryKeyIfNecessary(mappedFields, tableMapping.getPrimaryKey())
-                    );
-
-                    counter.addAndGet(
-                            importRelatedCollections(mappings, tableMapping, document)
-                    );
-
-                    int tmpCounter = counter.incrementAndGet();
+                    int tmpCounter = counter.addAndGet(nbInsertions);
                     if (tmpCounter % 1000 == 0) {
                         long endTime = System.currentTimeMillis();
                         double processTimeInSeconds = (endTime - startTime)/1000D;
@@ -172,6 +160,31 @@ public class PostgreSqlConnector implements Connector {
         }
 
         return counter.get();
+    }
+
+    private int importDocument(FlattenMongoDocument document, DatabaseMapping mappings, TableMapping tableMapping) {
+        String primaryKeyName = tableMapping.getPrimaryKey();
+        String destinationName = tableMapping.getDestinationName();
+        List<Field> mappedFields = keepOnlyMappedFields(document, tableMapping);
+        List<Field> sqlQueryFields = withPrimaryKeyIfNecessary(mappedFields, primaryKeyName);
+        sqlExecutor.batchInsert(destinationName, tableMapping.getFieldMappings(), sqlQueryFields);
+
+        return importDocumentRelations(document, mappings, tableMapping, primaryKeyName, sqlQueryFields) + 1;
+    }
+
+    private int importDocumentRelations(
+            FlattenMongoDocument document,
+            DatabaseMapping mappings,
+            TableMapping tableMapping,
+            String primaryKeyName,
+            List<Field> fields) {
+
+        Field primaryKey = fields.stream()
+                .filter(field -> field.getName().equals(primaryKeyName))
+                .findFirst()
+                .orElse(null);
+
+        return importRelatedCollections(mappings, tableMapping, document, primaryKey);
     }
 
     private void removeAllRelatedRecords(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
@@ -194,7 +207,7 @@ public class PostgreSqlConnector implements Connector {
         }
     }
 
-    private int importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
+    private int importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document, Field primaryKey) {
         List<String> relatedCollections = getRelatedCollections(document);
 
         AtomicInteger counter = new AtomicInteger();
@@ -210,9 +223,12 @@ public class PostgreSqlConnector implements Connector {
                 continue;
             }
 
+            Object primaryKeyValue = primaryKey.getValue();
+
             List<FlattenMongoDocument> relatedDocuments = extractFlattenDocumentsFromRelatedCollection(
-                    document, relatedCollection, foreignKey, getPrimaryKeyValue(document, tableMapping), optFieldMapping.get()
+                    document, relatedCollection, foreignKey, primaryKeyValue, optFieldMapping.get()
             );
+
             counter.addAndGet(
                     bulkInsert(
                             optFieldMapping.get().getDestinationName(),
@@ -238,11 +254,9 @@ public class PostgreSqlConnector implements Connector {
         if (!optDocumentPrimaryKey.isPresent()) {
             log.error("No primary key value found for document {}. Generating a random one...", document);
             return new ObjectId().toString();
-        } else {
-            optDocumentPrimaryKey = optDocumentPrimaryKey.map(pk -> pk instanceof ObjectId ? pk.toString() : pk);
         }
 
-        return optDocumentPrimaryKey.get();
+        return optDocumentPrimaryKey.map(pk -> pk instanceof ObjectId ? pk.toString() : pk).get();
     }
 
     private List<Field> withPrimaryKeyIfNecessary(List<Field> currentTableFields, String primaryKey) {
