@@ -21,7 +21,7 @@ public class StreamerApplication implements ApplicationRunner {
         SpringApplication.run(StreamerApplication.class, args);
     }
 
-    @Value("${mongo.connector.forcereimport:true}")
+    @Value("${mongo.connector.forcereimport:false}")
     private boolean forceReimport;
 
     @Autowired
