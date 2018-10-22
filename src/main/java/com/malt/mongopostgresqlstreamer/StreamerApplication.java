@@ -4,17 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonTimestamp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.SpringApplication;
+import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Profile;
 
 import java.util.Optional;
 
 @SpringBootApplication
 @Slf4j
-@Profile("production")
 public class StreamerApplication implements ApplicationRunner {
 
     public static void main(String[] args) {
