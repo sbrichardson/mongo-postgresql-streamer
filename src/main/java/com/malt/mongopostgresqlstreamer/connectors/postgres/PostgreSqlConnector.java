@@ -343,6 +343,7 @@ public class PostgreSqlConnector implements Connector {
         return mappings.getFieldMappings().stream()
                 .filter(fieldMapping -> !fieldMapping.isAnArray())
                 .map(fieldMapping -> toField(fieldMapping, values))
+                .filter(field -> !field.isList())
                 .collect(toList());
     }
 
