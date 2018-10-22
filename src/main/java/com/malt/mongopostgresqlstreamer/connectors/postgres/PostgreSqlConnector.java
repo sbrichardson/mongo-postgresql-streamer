@@ -188,7 +188,7 @@ public class PostgreSqlConnector implements Connector {
     }
 
     private void removeAllRelatedRecords(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document) {
-        List<String> relatedCollections = getRelatedCollections(document);
+        List<String> relatedCollections = getRelatedCollections(tableMapping);
         for (String relatedCollection : relatedCollections) {
             Optional<FieldMapping> optFieldMapping = tableMapping.getBySourceName(relatedCollection);
             if (!optFieldMapping.isPresent()) {
@@ -197,7 +197,7 @@ public class PostgreSqlConnector implements Connector {
 
             String foreignKey = optFieldMapping.get().getForeignKey();
             if (isBlank(foreignKey)) {
-                log.warn("Related table must have a foreign key. None found. {} import skipped.", relatedCollection);
+                log.warn("Related table must have a foreign key. None found. {} removal skipped.", relatedCollection);
                 continue;
             }
 
@@ -208,7 +208,7 @@ public class PostgreSqlConnector implements Connector {
     }
 
     private int importRelatedCollections(DatabaseMapping mappings, TableMapping tableMapping, FlattenMongoDocument document, Field primaryKey) {
-        List<String> relatedCollections = getRelatedCollections(document);
+        List<String> relatedCollections = getRelatedCollections(tableMapping);
 
         AtomicInteger counter = new AtomicInteger();
         for (String relatedCollection : relatedCollections) {
@@ -331,11 +331,10 @@ public class PostgreSqlConnector implements Connector {
         return FlattenMongoDocument.fromMap(documentMap);
     }
 
-    private List<String> getRelatedCollections(FlattenMongoDocument document) {
-        return document.getValues().entrySet().stream()
-                .map(e -> new Field(e.getKey(), e.getValue()))
-                .filter(Field::isList)
-                .map(Field::getName)
+    private List<String> getRelatedCollections(TableMapping mapping) {
+        return mapping.getFieldMappings().stream()
+                .filter(FieldMapping::isAnArray)
+                .map(FieldMapping::getSourceName)
                 .collect(toList());
     }
 
