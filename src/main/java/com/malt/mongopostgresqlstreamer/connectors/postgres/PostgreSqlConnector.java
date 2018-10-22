@@ -354,12 +354,21 @@ public class PostgreSqlConnector implements Connector {
     }
 
     private static Object transform(Object value, String type) {
-        if (type.equalsIgnoreCase("_PRESENCE")) {
+        String upperType = type.toUpperCase();
+
+        if (upperType.equals("_PRESENCE")) {
             return value != null;
         }
-        if (type.startsWith("DOUBLE PRECISION") && value instanceof String) {
+
+        if (upperType.startsWith("DOUBLE PRECISION") && value instanceof String) {
             return new BigDecimal((String)value);
         }
+
+        // Corner case, we don't know how to handle these fields, so keep it as the result of `toString`.
+        if (upperType.equals("TEXT") || upperType.startsWith("VARCHAR") && !(value instanceof String)) {
+            return value == null ? value : value.toString();
+        }
+
         return value;
     }
 
